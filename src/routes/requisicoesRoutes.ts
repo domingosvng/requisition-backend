@@ -163,27 +163,42 @@ router.put('/:id/approve', authenticateJWT, async (req: AuthenticatedRequest, re
     }
     const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
     if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
-    let newStatus: StatusRequisicao | null = null;
-    // CLEANUP: Use direct enum comparison
-    if (user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE) {
-      newStatus = StatusRequisicao.APROVADA_GERENCIA;
-    } else if (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA) { 
-      newStatus = StatusRequisicao.APROVADA;
-      // Inventory Deduction Logic (Permanent Fix)
-      for (const item of requisicao.itens) {
-        if (item.itemId) {
-          const inventoryItem = await itemInventarioRepository.findOne({ where: { id: item.itemId } });
-          if (inventoryItem) {
-            inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
-            await itemInventarioRepository.save(inventoryItem);
+    let isStatusValid = false;
+    // --- 1. GESTOR_DADM (Tier 1 Review/Approval) ---
+    if (user.role === 'GESTOR_DADM') {
+      if (requisicao.status === StatusRequisicao.PENDENTE) {
+        requisicao.status = StatusRequisicao.APROVADA_GERENCIA;
+        requisicao.comentarioGestorDADM = comment || '';
+        isStatusValid = true;
+      }
+    }
+    // --- 2. ADMIN (Tier 2 Final Approval) ---
+    else if (user.role === 'ADMIN') {
+      if (requisicao.status === StatusRequisicao.APROVADA_GERENCIA) {
+        requisicao.status = StatusRequisicao.APROVADA;
+        requisicao.comentarioAdmin = comment || '';
+        isStatusValid = true;
+        // Inventory Deduction Logic
+        for (const item of requisicao.itens) {
+          if (item.itemId) {
+            const inventoryItem = await itemInventarioRepository.findOne({ where: { id: item.itemId } });
+            if (inventoryItem) {
+              inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
+              await itemInventarioRepository.save(inventoryItem);
+            }
           }
         }
       }
-    } else {
+      // Admin can cancel/delete
+      else if (comment === 'CANCELADA' || comment === 'DELETE') {
+        requisicao.status = StatusRequisicao.REJEITADA;
+        requisicao.justificativaRejeicao = 'Cancelada/Deletada pelo Admin';
+        isStatusValid = true;
+      }
+    }
+    if (!isStatusValid) {
       return res.status(403).json({ message: 'Permission denied or requisition is not in the correct status for your approval tier.' });
     }
-    requisicao.status = newStatus;
-    requisicao.comentarioAprovacao = comment || '';
     await requisicaoRepository.save(requisicao);
     res.status(200).json(requisicao);
   } catch (error) {
@@ -240,6 +255,59 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
 });
 
 // All endpoints above should be protected by JWT middleware in production.
+// Unified status update route for approval, rejection, and deletion
+router.put('/:id/status', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { newStatus, comentario } = req.body;
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: 'User authentication required.' });
+    }
+    const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
+    if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
+
+    // Approval by Manager
+    if (user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE && newStatus === 'APROVADA_MANAGER') {
+      requisicao.status = StatusRequisicao.APROVADA_GERENCIA;
+      requisicao.comentarioGestorDADM = comentario || '';
+    }
+    // Final Approval by Admin
+    else if (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA && newStatus === 'APROVADA_FINAL') {
+      requisicao.status = StatusRequisicao.APROVADA;
+      requisicao.comentarioAdmin = comentario || '';
+      // Inventory deduction logic
+      for (const item of requisicao.itens) {
+        if (item.itemId) {
+          const inventoryItem = await itemInventarioRepository.findOne({ where: { id: item.itemId } });
+          if (inventoryItem) {
+            inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
+            await itemInventarioRepository.save(inventoryItem);
+          }
+        }
+      }
+    }
+    // Rejection by Manager or Admin
+    else if ((user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE && newStatus === 'REJEITADA') ||
+             (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA && newStatus === 'REJEITADA')) {
+      requisicao.status = StatusRequisicao.REJEITADA;
+      requisicao.justificativaRejeicao = comentario || '';
+    }
+    // Deletion by Admin
+    else if (user.role === 'ADMIN' && newStatus === 'DELETE') {
+      await requisicaoRepository.remove(requisicao);
+      return res.status(200).json({ message: `Requisition ${id} deleted successfully.` });
+    }
+    else {
+      return res.status(403).json({ message: 'Permission denied or requisition is not in the correct status for this action.' });
+    }
+    await requisicaoRepository.save(requisicao);
+    res.status(200).json(requisicao);
+  } catch (error) {
+    console.error('Erro ao atualizar status da requisição:', error);
+    res.status(500).json({ message: 'Erro interno do servidor ao atualizar status da requisição.' });
+  }
+});
 
 export default router;
 

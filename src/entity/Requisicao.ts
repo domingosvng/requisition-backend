@@ -13,6 +13,11 @@ export enum StatusRequisicao {
 @Entity()
 // Represents a requisition in the system.
 export class Requisicao {
+  @Column({ nullable: true })
+  comentarioGestorDADM?: string;
+
+  @Column({ nullable: true })
+  comentarioAdmin?: string;
   @PrimaryGeneratedColumn()
   id!: number;
 

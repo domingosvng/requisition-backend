@@ -25,6 +25,14 @@ let Requisicao = class Requisicao {
 };
 exports.Requisicao = Requisicao;
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Requisicao.prototype, "comentarioGestorDADM", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Requisicao.prototype, "comentarioAdmin", void 0);
+__decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)(),
     __metadata("design:type", Number)
 ], Requisicao.prototype, "id", void 0);

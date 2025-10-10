@@ -12,8 +12,8 @@ const userRepository = AppDataSource.getRepository(User);
 router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can view suppliers.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can view suppliers.' });
     }
     const fornecedores = await fornecedorRepository.find();
     res.status(200).json(fornecedores);
@@ -28,8 +28,8 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
     const { nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos } = req.body;
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can create suppliers.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can create suppliers.' });
     }
     const newFornecedor = fornecedorRepository.create({ nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos });
     await fornecedorRepository.save(newFornecedor);
@@ -46,8 +46,8 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const user = req.user;
     const updateData = req.body;
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can edit suppliers.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can edit suppliers.' });
     }
     const fornecedor = await fornecedorRepository.findOne({ where: { id: Number(id) } });
     if (!fornecedor) return res.status(404).json({ message: 'Supplier not found.' });
@@ -65,8 +65,8 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can delete suppliers.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can delete suppliers.' });
     }
     const fornecedor = await fornecedorRepository.findOne({ where: { id: Number(id) } });
     if (!fornecedor) return res.status(404).json({ message: 'Supplier not found.' });

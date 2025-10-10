@@ -13,8 +13,8 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     // User info is now attached to req.user by middleware
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'dadm_manager')) {
-      return res.status(403).json({ message: 'Only admins or managers can view inventory.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can view inventory.' });
     }
     const items = await itemRepository.find();
     res.status(200).json(items);
@@ -29,8 +29,8 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
     const { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can create inventory items.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can create inventory items.' });
     }
     const newItem = itemRepository.create({ nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status });
     await itemRepository.save(newItem);
@@ -47,8 +47,8 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const user = req.user;
     const updateData = req.body;
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can edit inventory items.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can edit inventory items.' });
     }
     const item = await itemRepository.findOne({ where: { id: Number(id) } });
     if (!item) return res.status(404).json({ message: 'Item not found.' });
@@ -66,8 +66,8 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can delete inventory items.' });
+    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+      return res.status(403).json({ message: 'Only admins or technical admins can delete inventory items.' });
     }
     const item = await itemRepository.findOne({ where: { id: Number(id) } });
     if (!item) return res.status(404).json({ message: 'Item not found.' });

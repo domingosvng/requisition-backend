@@ -21,8 +21,8 @@ const userRepository = data_source_1.AppDataSource.getRepository(User_1.User);
 router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const user = req.user;
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ message: 'Only admins can view suppliers.' });
+        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+            return res.status(403).json({ message: 'Only admins or technical admins can view suppliers.' });
         }
         const fornecedores = yield fornecedorRepository.find();
         res.status(200).json(fornecedores);
@@ -37,8 +37,8 @@ router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 
     try {
         const user = req.user;
         const { nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos } = req.body;
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ message: 'Only admins can create suppliers.' });
+        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+            return res.status(403).json({ message: 'Only admins or technical admins can create suppliers.' });
         }
         const newFornecedor = fornecedorRepository.create({ nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos });
         yield fornecedorRepository.save(newFornecedor);
@@ -55,8 +55,8 @@ router.put('/:id', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(voi
         const { id } = req.params;
         const user = req.user;
         const updateData = req.body;
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ message: 'Only admins can edit suppliers.' });
+        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+            return res.status(403).json({ message: 'Only admins or technical admins can edit suppliers.' });
         }
         const fornecedor = yield fornecedorRepository.findOne({ where: { id: Number(id) } });
         if (!fornecedor)
@@ -75,8 +75,8 @@ router.delete('/:id', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(
     try {
         const { id } = req.params;
         const user = req.user;
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ message: 'Only admins can delete suppliers.' });
+        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+            return res.status(403).json({ message: 'Only admins or technical admins can delete suppliers.' });
         }
         const fornecedor = yield fornecedorRepository.findOne({ where: { id: Number(id) } });
         if (!fornecedor)

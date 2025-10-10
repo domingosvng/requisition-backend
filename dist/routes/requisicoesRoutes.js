@@ -42,21 +42,17 @@ router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 
         // Get user info from token
         const { id: userId, role } = req.user || {};
         // Get requisition data from request body
-        let { areaSolicitante, urgencia, observacoes } = req.body;
+        const { area, urgencia, observacoes } = req.body;
         const items = req.body.items || req.body.itens || [];
         // Generate unique requisition number
         const numeroRequisicao = yield generateRequisicaoNumber();
-        // Fetch the full User entity
+        // Fetch the full User entity using userId from JWT
         const solicitante = yield userRepository.findOne({ where: { id: userId } });
-        // If areaSolicitante is not provided, use a default value
-        if (!areaSolicitante) {
-            areaSolicitante = 'Não Informada';
-        }
         if (!solicitante) {
             return res.status(404).json({ message: 'Solicitante não encontrado.' });
         }
-        if (solicitante.role !== 'SOLICITANTE' && solicitante.role !== 'GESTOR_DADM') {
-            return res.status(403).json({ message: 'Apenas solicitantes e gestores podem criar requisições.' });
+        if (solicitante.role !== 'SOLICITANTE' && solicitante.role !== 'GESTOR_DADM' && solicitante.role !== 'ADMIN_TEC') {
+            return res.status(403).json({ message: 'Apenas solicitantes, gestores e técnicos podem criar requisições.' });
         }
         // Validate and link items to inventory
         const validatedItems = [];
@@ -85,11 +81,11 @@ router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 
         const novaRequisicao = requisicaoRepository.create({
             numeroRequisicao,
             solicitante,
-            areaSolicitante,
+            areaSolicitante: area,
             urgencia,
             itens: itensArray,
             status: Requisicao_1.StatusRequisicao.PENDENTE,
-            observacoes: req.body.observacoes || observacoes || '',
+            observacoes: observacoes || '',
         });
         yield requisicaoRepository.save(novaRequisicao);
         return res.status(201).json({ message: 'Requisição criada com sucesso.', requisicao: novaRequisicao });
@@ -111,7 +107,7 @@ router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0
         if (user.role === 'GESTOR_DADM' || user.role === 'ADMIN') {
             requisicoes = yield requisicaoRepository.find(findOptions);
         }
-        else if (user.role === 'ADMIN_TEC') {
+        else if (user.role === 'ADMIN_TEC' || user.role === 'admin_dept_tech' || user.role === 'SOLICITANTE') {
             // Show both own requests and those to process
             const own = yield requisicaoRepository.find(Object.assign(Object.assign({}, findOptions), { where: { solicitante: { id: user.id } } }));
             const toProcess = yield requisicaoRepository.find(Object.assign(Object.assign({}, findOptions), { where: { status: (0, typeorm_1.In)([Requisicao_1.StatusRequisicao.APROVADA, Requisicao_1.StatusRequisicao.EM_PROCESSAMENTO, Requisicao_1.StatusRequisicao.CONCLUIDA]) } }));
@@ -120,9 +116,27 @@ router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0
             const unique = Array.from(new Map(all.map(r => [r.id, r])).values());
             requisicoes = unique;
         }
-        else {
+        else if (user.role === 'requester' || user.role === 'SOLICITANTE') {
             requisicoes = yield requisicaoRepository.find(Object.assign(Object.assign({}, findOptions), { where: { solicitante: { id: user.id } } }));
         }
+        else {
+            requisicoes = yield requisicaoRepository.find(findOptions);
+        }
+        // Always include all fields in response
+        requisicoes = requisicoes.map(r => ({
+            id: r.id,
+            numeroRequisicao: r.numeroRequisicao,
+            status: r.status,
+            solicitante: r.solicitante,
+            areaSolicitante: r.areaSolicitante,
+            urgencia: r.urgencia,
+            observacoes: r.observacoes,
+            fornecedorSugestaoId: r.fornecedorSugestaoId,
+            justificativaRejeicao: r.justificativaRejeicao,
+            comentarioAprovacao: r.comentarioAprovacao,
+            responsavelProcessamentoId: r.responsavelProcessamentoId,
+            itens: r.itens
+        }));
         res.status(200).json(requisicoes);
     }
     catch (error) {
@@ -156,29 +170,42 @@ router.put('/:id/approve', authMiddleware_1.authenticateJWT, (req, res) => __awa
         const requisicao = yield requisicaoRepository.findOne({ where: { id: Number(id) } });
         if (!requisicao)
             return res.status(404).json({ message: 'Requisition not found.' });
-        let newStatus = null;
-        // CLEANUP: Use direct enum comparison
-        if (user.role === 'GESTOR_DADM' && requisicao.status === Requisicao_1.StatusRequisicao.PENDENTE) {
-            newStatus = Requisicao_1.StatusRequisicao.APROVADA_GERENCIA;
+        let isStatusValid = false;
+        // --- 1. GESTOR_DADM (Tier 1 Review/Approval) ---
+        if (user.role === 'GESTOR_DADM') {
+            if (requisicao.status === Requisicao_1.StatusRequisicao.PENDENTE) {
+                requisicao.status = Requisicao_1.StatusRequisicao.APROVADA_GERENCIA;
+                requisicao.comentarioGestorDADM = comment || '';
+                isStatusValid = true;
+            }
         }
-        else if (user.role === 'ADMIN' && requisicao.status === Requisicao_1.StatusRequisicao.APROVADA_GERENCIA) {
-            newStatus = Requisicao_1.StatusRequisicao.APROVADA;
-            // Inventory Deduction Logic (Permanent Fix)
-            for (const item of requisicao.itens) {
-                if (item.itemId) {
-                    const inventoryItem = yield itemInventarioRepository.findOne({ where: { id: item.itemId } });
-                    if (inventoryItem) {
-                        inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
-                        yield itemInventarioRepository.save(inventoryItem);
+        // --- 2. ADMIN (Tier 2 Final Approval) ---
+        else if (user.role === 'ADMIN') {
+            if (requisicao.status === Requisicao_1.StatusRequisicao.APROVADA_GERENCIA) {
+                requisicao.status = Requisicao_1.StatusRequisicao.APROVADA;
+                requisicao.comentarioAdmin = comment || '';
+                isStatusValid = true;
+                // Inventory Deduction Logic
+                for (const item of requisicao.itens) {
+                    if (item.itemId) {
+                        const inventoryItem = yield itemInventarioRepository.findOne({ where: { id: item.itemId } });
+                        if (inventoryItem) {
+                            inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
+                            yield itemInventarioRepository.save(inventoryItem);
+                        }
                     }
                 }
             }
+            // Admin can cancel/delete
+            else if (comment === 'CANCELADA' || comment === 'DELETE') {
+                requisicao.status = Requisicao_1.StatusRequisicao.REJEITADA;
+                requisicao.justificativaRejeicao = 'Cancelada/Deletada pelo Admin';
+                isStatusValid = true;
+            }
         }
-        else {
+        if (!isStatusValid) {
             return res.status(403).json({ message: 'Permission denied or requisition is not in the correct status for your approval tier.' });
         }
-        requisicao.status = newStatus;
-        requisicao.comentarioAprovacao = comment || '';
         yield requisicaoRepository.save(requisicao);
         res.status(200).json(requisicao);
     }

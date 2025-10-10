@@ -1,3 +1,15 @@
+// Helper to generate unique requisition number
+async function generateRequisicaoNumber(): Promise<string> {
+  const requisicaoRepository = AppDataSource.getRepository(Requisicao);
+  const latestRequisicao = await requisicaoRepository.findOne({ where: {}, order: { id: 'DESC' } });
+  const nextSequence = (latestRequisicao ? latestRequisicao.id : 0) + 1;
+  const sequenceString = String(nextSequence).padStart(4, '0');
+  const year = new Date().getFullYear();
+  return `REQ-${year}-${sequenceString}`;
+}
+// ...existing code...
+
+// ...existing code...
 // src/routes/requisicoesRoutes.ts
 
 import { Router } from 'express';
@@ -6,6 +18,7 @@ import { Requisicao, StatusRequisicao } from '../entity/Requisicao';
 import { User } from '../entity/User';
 import { ItemInventario } from '../entity/ItemInventario';
 import { authenticateJWT, AuthenticatedRequest } from '../middleware/authMiddleware';
+import { In } from 'typeorm';
 
 const router = Router();
 const requisicaoRepository = AppDataSource.getRepository(Requisicao);
@@ -14,50 +27,61 @@ const itemInventarioRepository = AppDataSource.getRepository(ItemInventario);
 
 // Create a new requisition (Requester only)
 // Requires: userId, numeroRequisicao, areaSolicitante, urgencia, itens, observacoes
-router.post('/', async (req, res) => {
+// Use authentication middleware to get user from JWT
+router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
-    const { userId, numeroRequisicao, areaSolicitante, urgencia, observacoes } = req.body;
-    // Accept both 'items' and 'itens' from the request, default to empty array
-    const items: any[] = req.body.items || req.body.itens || [];
-    // Validate user
-    const user = await userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+  // Get user info from token
+      const { id: userId, role } = req.user || {};
+  // Get requisition data from request body
+  const { area, urgencia, observacoes } = req.body;
+  const items: any[] = req.body.items || req.body.itens || [];
+  // Generate unique requisition number
+  const numeroRequisicao = await generateRequisicaoNumber();
+      // Fetch the full User entity using userId from JWT
+      const solicitante = await userRepository.findOne({ where: { id: userId } });
+    if (!solicitante) {
+      return res.status(404).json({ message: 'Solicitante não encontrado.' });
     }
-    if (user.role !== 'requester' && user.role !== 'dadm_manager') {
-      return res.status(403).json({ message: 'Only requesters and managers can create requisitions.' });
+    if (solicitante.role !== 'SOLICITANTE' && solicitante.role !== 'GESTOR_DADM' && solicitante.role !== 'ADMIN_TEC') {
+      return res.status(403).json({ message: 'Apenas solicitantes, gestores e técnicos podem criar requisições.' });
     }
     // Validate and link items to inventory
     const validatedItems = [];
     for (const item of items) {
       if (item.itemId) {
-        // Try to find the inventory item
         const inventoryItem = await itemInventarioRepository.findOne({ where: { id: Number(item.itemId) } });
         if (!inventoryItem) {
           return res.status(400).json({ message: `Inventory item with ID ${item.itemId} not found.` });
         }
         validatedItems.push({ ...item, nome: inventoryItem.nome, unidadeMedida: inventoryItem.unidadeMedida });
       } else {
-        // Allow custom item (not in inventory)
         validatedItems.push(item);
       }
     }
     // Create requisition
+    // Map form fields to itens array if needed
+    let itensArray = validatedItems;
+    if (itensArray.length === 0 && req.body.descricao && req.body.quantidade) {
+      itensArray = [{
+        descricao: req.body.descricao,
+        quantidade: req.body.quantidade,
+        especificacoes: req.body.especificacoes || ''
+      }];
+    }
     const novaRequisicao = requisicaoRepository.create({
-      numeroRequisicao,
-      solicitante: user,
-      areaSolicitante,
-      urgencia,
-      itens: validatedItems, // entity expects 'itens'
-      status: StatusRequisicao.PENDENTE,
-      observacoes
+  numeroRequisicao,
+  solicitante,
+  areaSolicitante: area,
+  urgencia,
+  itens: itensArray,
+  status: StatusRequisicao.PENDENTE,
+  observacoes: observacoes || '',
     });
     await requisicaoRepository.save(novaRequisicao);
-    res.status(201).json(novaRequisicao);
+    return res.status(201).json({ message: 'Requisição criada com sucesso.', requisicao: novaRequisicao });
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('Erro ao criar requisição:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao criar requisição.', error: errorMsg });
+    res.status(500).json({ message: 'Erro interno do servidor ao criar requisição.' });
   }
 });
 
@@ -69,19 +93,45 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     if (!user) return res.status(401).json({ message: 'User not found.' });
     let requisicoes;
     let findOptions = { order: { dataCriacao: 'DESC' as const }, relations: ['solicitante'] };
-    if (user.role === 'admin' || user.role === 'dadm_manager') {
+    if (user.role === 'GESTOR_DADM' || user.role === 'ADMIN') {
       requisicoes = await requisicaoRepository.find(findOptions);
-    } else if (user.role === 'admin_dept_tech') {
-      requisicoes = await requisicaoRepository.find({ 
-        ...findOptions, 
-        where: { status: StatusRequisicao.APROVADA } 
+  } else if (user.role === 'ADMIN_TEC' || user.role === 'admin_dept_tech' || user.role === 'SOLICITANTE') {
+      // Show both own requests and those to process
+      const own = await requisicaoRepository.find({
+        ...findOptions,
+        where: { solicitante: { id: user.id } }
       });
-    } else {
+      const toProcess = await requisicaoRepository.find({
+        ...findOptions,
+        where: { status: In([StatusRequisicao.APROVADA, StatusRequisicao.EM_PROCESSAMENTO, StatusRequisicao.CONCLUIDA]) }
+      });
+      // Merge and deduplicate by id
+      const all = [...own, ...toProcess];
+      const unique = Array.from(new Map(all.map(r => [r.id, r])).values());
+      requisicoes = unique;
+    } else if (user.role === 'requester' || user.role === 'SOLICITANTE') {
       requisicoes = await requisicaoRepository.find({ 
         ...findOptions, 
         where: { solicitante: { id: user.id } } 
       });
+    } else {
+      requisicoes = await requisicaoRepository.find(findOptions);
     }
+    // Always include all fields in response
+    requisicoes = requisicoes.map(r => ({
+      id: r.id,
+      numeroRequisicao: r.numeroRequisicao,
+      status: r.status,
+      solicitante: r.solicitante,
+      areaSolicitante: r.areaSolicitante,
+      urgencia: r.urgencia,
+      observacoes: r.observacoes,
+      fornecedorSugestaoId: r.fornecedorSugestaoId,
+      justificativaRejeicao: r.justificativaRejeicao,
+      comentarioAprovacao: r.comentarioAprovacao,
+      responsavelProcessamentoId: r.responsavelProcessamentoId,
+      itens: r.itens
+    }));
     res.status(200).json(requisicoes);
   } catch (error) {
     console.error('Erro ao obter requisições:', error);
@@ -102,27 +152,38 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Approve a requisition (Manager only)
-router.put('/:id/approve', async (req, res) => {
+// Approve a requisition (Manager/Admin only)
+router.put('/:id/approve', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
-    const { userId, comment } = req.body;
-    const user = await userRepository.findOne({ where: { id: userId } });
+    const { comment } = req.body;
+    const user = req.user;
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(401).json({ message: 'User authentication required.' });
     }
     const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
     if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
     let newStatus: StatusRequisicao | null = null;
-    if (user.role === 'dadm_manager' && requisicao.status === StatusRequisicao.PENDENTE) {
+    // CLEANUP: Use direct enum comparison
+    if (user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE) {
       newStatus = StatusRequisicao.APROVADA_GERENCIA;
-    } else if (user.role === 'admin' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA) {
+    } else if (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA) { 
       newStatus = StatusRequisicao.APROVADA;
+      // Inventory Deduction Logic (Permanent Fix)
+      for (const item of requisicao.itens) {
+        if (item.itemId) {
+          const inventoryItem = await itemInventarioRepository.findOne({ where: { id: item.itemId } });
+          if (inventoryItem) {
+            inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
+            await itemInventarioRepository.save(inventoryItem);
+          }
+        }
+      }
     } else {
       return res.status(403).json({ message: 'Permission denied or requisition is not in the correct status for your approval tier.' });
     }
     requisicao.status = newStatus;
-    requisicao.observacoes = comment || requisicao.observacoes;
+    requisicao.comentarioAprovacao = comment || '';
     await requisicaoRepository.save(requisicao);
     res.status(200).json(requisicao);
   } catch (error) {
@@ -131,21 +192,21 @@ router.put('/:id/approve', async (req, res) => {
   }
 });
 
-// Reject a requisition (Manager only)
-router.put('/:id/reject', async (req, res) => {
+// Reject a requisition (Manager/Admin only)
+router.put('/:id/reject', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
-    const { userId, comment } = req.body;
-    const user = await userRepository.findOne({ where: { id: userId } });
+    const { comment } = req.body;
+    const user = req.user;
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(401).json({ message: 'User authentication required.' });
     }
     const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
     if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
-    // Only allow rejection if in correct status and by correct role
+    // CLEANUP: Use direct enum comparison
     if (
-      (user.role === 'dadm_manager' && requisicao.status === StatusRequisicao.PENDENTE) ||
-      (user.role === 'admin' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA)
+      (user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE) ||
+      (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA)
     ) {
       requisicao.status = StatusRequisicao.REJEITADA;
       requisicao.justificativaRejeicao = comment || '';
@@ -161,11 +222,10 @@ router.put('/:id/reject', async (req, res) => {
 });
 
 // Delete a requisition (Admin only)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body;
-    const user = await userRepository.findOne({ where: { id: userId } });
+    const user = req.user;
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ message: 'Only admins can delete requisitions.' });
     }
@@ -182,3 +242,33 @@ router.delete('/:id', async (req, res) => {
 // All endpoints above should be protected by JWT middleware in production.
 
 export default router;
+
+// Move requisition status to EM_PROCESSAMENTO (Admin Tech only)
+router.put('/:id/process', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    if (!user || user.role !== 'admin_dept_tech') {
+      return res.status(403).json({ message: 'Permission denied. Only Admin Tech can start processing.' });
+    }
+
+    const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
+    if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
+
+    // Only move to EM_PROCESSAMENTO if currently APROVADA
+    if (requisicao.status === StatusRequisicao.APROVADA) {
+      requisicao.status = StatusRequisicao.EM_PROCESSAMENTO;
+      // ADDED: Save the technician's ID here for tracking
+  requisicao.responsavelProcessamentoId = user.id.toString();
+      await requisicaoRepository.save(requisicao);
+      res.status(200).json(requisicao);
+    } else {
+      return res.status(400).json({ 
+        message: `Cannot start processing. Requisition status must be ${StatusRequisicao.APROVADA}. Current status: ${requisicao.status}` 
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao iniciar processamento:', error);
+    res.status(500).json({ message: 'Erro interno do servidor ao iniciar processamento.' });
+  }
+});

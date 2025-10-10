@@ -22,8 +22,10 @@ router.post('/register', async (req, res) => {
             return res.status(409).json({ message: 'Username already exists' });
         }
 
-        // Pass plain password, let User entity hash it
-        const newUser = userRepository.create({ username, password_hash: password });
+        // Hash the password before saving
+        const password_hash = await bcrypt.hash(password, 10);
+        // Default role is SOLICITANTE
+        const newUser = userRepository.create({ username, password_hash, role: 'SOLICITANTE' });
 
         await userRepository.save(newUser);
 
@@ -40,7 +42,11 @@ router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        const user = await userRepository.findOne({ where: { username } });
+        const user = await userRepository.findOne({
+            where: { username },
+            select: ['id', 'username', 'role', 'password_hash']
+        });
+
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
@@ -52,12 +58,20 @@ router.post('/login', async (req, res) => {
 
         // Include role in JWT and use env secret
         const token = jwt.sign(
-            { userId: user.id, username: user.username, role: user.role },
+            { id: user.id, username: user.username, role: user.role },
             process.env.JWT_SECRET!,
             { expiresIn: '1h' }
         );
 
-        res.status(200).json({ message: 'Login successful', token });
+        res.status(200).json({ 
+            message: 'Login successful', 
+            token, 
+            user: { 
+                id: user.id, 
+                username: user.username, 
+                role: user.role 
+            } 
+        });
     } catch (error) {
         console.error('Login failed:', error);
         res.status(500).json({ message: 'Login failed' });

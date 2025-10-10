@@ -12,7 +12,8 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
-    "rootDir": "./src"
+      "outDir": "./dist",
+      "rootDir": "./src"
+    },
+    "exclude": ["frontend", "frontend-vue", "node_modules"]
   }
-}

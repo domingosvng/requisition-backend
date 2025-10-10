@@ -4,8 +4,9 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "start": "node dist/index.js",
+  "predev": "powershell -Command \"$p=Get-NetTCPConnection -LocalPort 3001 -State Listen | Select-Object -ExpandProperty OwningProcess; if($p){Stop-Process -Id $p -Force}\"; exit 0",
     "dev": "ts-node-dev --require reflect-metadata --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
     "build": "tsc"
   },
   "keywords": [],
@@ -22,13 +23,19 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.4",
+    "axios": "^1.12.2",
     "bcrypt": "^5.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.5",
+    "react-router-dom": "^7.9.4",
     "reflect-metadata": "^0.1.13",
-    "typeorm": "^0.3.20"
+    "typeorm": "^0.3.20",
+    "vue-router": "^4.5.1"
   }
 }

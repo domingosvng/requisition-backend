@@ -1,0 +1,22 @@
+To clean up Vite from your CRA React project, follow these steps:
+
+1. Delete these files if they exist in your frontend directory:
+   - vite.config.ts
+   - index.html (if not CRA's public/index.html)
+   - tsconfig.node.json
+
+2. Remove Vite-related dependencies:
+   Run in your frontend directory:
+   npm uninstall vite @vitejs/plugin-react-swc
+
+3. Make sure your package.json scripts use CRA commands:
+   - "start": "react-scripts start"
+   - "build": "react-scripts build"
+   - "test": "react-scripts test"
+
+4. Remove any .env or config files referencing Vite-specific settings.
+
+5. Start your app with:
+   npm start
+
+Your project will now be a clean Create React App setup.

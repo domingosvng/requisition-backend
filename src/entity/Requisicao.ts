@@ -6,6 +6,8 @@ export enum StatusRequisicao {
   APROVADA_GERENCIA = 'APROVADA_GERENCIA',
   APROVADA = 'APROVADA',
   REJEITADA = 'REJEITADA',
+  EM_PROCESSAMENTO = 'EM_PROCESSAMENTO',
+  CONCLUIDA = 'CONCLUIDA',
 }
 
 @Entity()
@@ -43,6 +45,9 @@ export class Requisicao {
 
   @Column({ nullable: true })
   justificativaRejeicao?: string;
+
+  @Column({ nullable: true })
+  comentarioAprovacao?: string;
 
   @Column({ nullable: true })
   responsavelProcessamentoId?: string;

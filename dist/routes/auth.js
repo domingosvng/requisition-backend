@@ -12,51 +12,68 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const data_source_1 = require("../data-source");
-const User_1 = require("../entity/User");
+const express_1 = __importDefault(require("express"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const router = (0, express_1.Router)();
+const User_1 = require("../entity/User");
+const data_source_1 = require("../data-source");
+const router = express_1.default.Router();
 const userRepository = data_source_1.AppDataSource.getRepository(User_1.User);
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
-// Register Route
+// Register route
+// Handles user registration. Hashes password in User entity.
 router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { username, password } = req.body;
-        const existingUser = yield userRepository.findOneBy({ username });
-        if (existingUser) {
-            return res.status(409).json({ message: 'User already exists' });
+        if (!username || !password) {
+            return res.status(400).json({ message: 'Username and password are required' });
         }
-        const newUser = new User_1.User();
-        newUser.username = username;
-        newUser.password_hash = password;
+        const existingUser = yield userRepository.findOne({ where: { username } });
+        if (existingUser) {
+            return res.status(409).json({ message: 'Username already exists' });
+        }
+        // Hash the password before saving
+        const password_hash = yield bcrypt_1.default.hash(password, 10);
+        // Default role is SOLICITANTE
+        const newUser = userRepository.create({ username, password_hash, role: 'SOLICITANTE' });
         yield userRepository.save(newUser);
-        res.status(201).json({ message: 'User registered successfully!' });
+        res.status(201).json({ message: 'User registered successfully' });
     }
     catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ message: 'Server error during registration' });
+        console.error('Registration failed:', error);
+        res.status(500).json({ message: 'Registration failed' });
     }
 }));
-// Login Route
+// Login route
+// Authenticates user and returns JWT token if credentials are valid.
 router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { username, password } = req.body;
-        const user = yield userRepository.findOneBy({ username });
+        const user = yield userRepository.findOne({
+            where: { username },
+            select: ['id', 'username', 'role', 'password_hash']
+        });
         if (!user) {
-            return res.status(400).json({ message: 'Invalid username or password' });
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
-        const isMatch = yield bcrypt_1.default.compare(password, user.password_hash);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid username or password' });
+        const isPasswordValid = yield bcrypt_1.default.compare(password, user.password_hash);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
-        const token = jsonwebtoken_1.default.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
+        // Include role in JWT and use env secret
+        const token = jsonwebtoken_1.default.sign({ userId: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.status(200).json({
+            message: 'Login successful',
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                role: user.role
+            }
+        });
     }
     catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ message: 'Server error during login' });
+        console.error('Login failed:', error);
+        res.status(500).json({ message: 'Login failed' });
     }
 }));
 exports.default = router;

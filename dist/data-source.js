@@ -7,6 +7,9 @@ exports.AppDataSource = void 0;
 require("reflect-metadata");
 const typeorm_1 = require("typeorm");
 const User_1 = require("./entity/User");
+const Requisicao_1 = require("./entity/Requisicao");
+const Fornecedor_1 = require("./entity/Fornecedor");
+const ItemInventario_1 = require("./entity/ItemInventario");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 exports.AppDataSource = new typeorm_1.DataSource({
@@ -18,7 +21,7 @@ exports.AppDataSource = new typeorm_1.DataSource({
     database: process.env.DB_DATABASE,
     synchronize: true,
     logging: false,
-    entities: [IRequisicao_1.IRequisicao, User_1.User, IFornecedor_1.IFornecedor, IItemInventario_1.IItemInventario],
+    entities: [User_1.User, Requisicao_1.Requisicao, Fornecedor_1.Fornecedor, ItemInventario_1.ItemInventario],
     migrations: [],
     subscribers: [],
 });

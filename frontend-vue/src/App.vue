@@ -5,13 +5,6 @@
       <router-view />
     </div>
   </div>
-/* App.vue Styles */
-.main-content {
-  padding-top: 70px !important;
-}
-body {
-  margin: 0;
-}
 </template>
 
 <script>
@@ -46,7 +39,15 @@ export default {
 </script>
 
 <style scoped>
-.content-area {
-  padding: 32px;
+body {
+  margin: 0;
+  background: #f7f7fa;
+}
+.main-content {
+  min-height: calc(100vh - 70px);
+  padding-top: 70px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 </style>

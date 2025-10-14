@@ -35,7 +35,14 @@
         <h3>Lista de Fornecedores</h3>
         <table class="table table-striped table-bordered table-hover">
             <thead class="table-dark">
-                <tr><th>Nome</th><th>NIF</th><th>Email</th><th>Categoria</th><th>Ações</th></tr>
+                <tr>
+                    <th>Nome</th>
+                    <th>NIF</th>
+                    <th>Email</th>
+                    <th>Categoria</th>
+                    <th v-if="userRole === 'ADMIN_TEC'">Editar</th>
+                    <th v-if="userRole === 'ADMIN_TEC'">Excluir</th>
+                </tr>
             </thead>
             <tbody>
                 <tr v-for="forn in fornecedores" :key="forn.id">
@@ -43,8 +50,10 @@
                     <td>{{ forn.nif }}</td>
                     <td>{{ forn.email }}</td>
                     <td>{{ forn.categoriaServicos }}</td>
-                    <td>
+                    <td v-if="userRole === 'ADMIN_TEC'">
                         <button @click="editFornecedor(forn)" class="btn btn-sm btn-warning me-2">Modificar</button>
+                    </td>
+                    <td v-if="userRole === 'ADMIN_TEC'">
                         <button @click="deleteFornecedor(forn.id)" class="btn btn-sm btn-danger">Eliminar</button>
                     </td>
                 </tr>
@@ -63,6 +72,7 @@ export default {
             fornecedores: [],
             form: { id: null, nome: '', nif: '', morada: '', email: '', categoriaServicos: '' },
             isEditing: false,
+            userRole: localStorage.getItem('userRole'),
         };
     },
     created() { this.fetchFornecedores(); },
@@ -82,22 +92,30 @@ export default {
                 } else {
                     await axios.post(API_URL, this.form, { headers: { Authorization: `Bearer ${token}` } });
                 }
-                this.resetForm();
+                this.cancelEdit();
                 this.fetchFornecedores();
-            } catch (error) { alert('Erro ao guardar fornecedor.'); }
+            } catch (error) { alert('Erro ao salvar fornecedor.'); }
+        },
+        editFornecedor(forn) {
+            this.isEditing = true;
+            this.form = { ...forn };
+        },
+        cancelEdit() {
+            this.isEditing = false;
+            this.form = { id: null, nome: '', nif: '', morada: '', email: '', categoriaServicos: '' };
         },
         async deleteFornecedor(id) {
-            if (confirm('Tem certeza que deseja eliminar este fornecedor?')) {
-                const token = localStorage.getItem('userToken');
-                try {
-                    await axios.delete(`${API_URL}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-                    this.fetchFornecedores();
-                } catch (error) { alert('Erro ao eliminar fornecedor.'); }
-            }
+            const token = localStorage.getItem('userToken');
+            try {
+                await axios.delete(`${API_URL}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                this.fetchFornecedores();
+            } catch (error) { alert('Erro ao eliminar fornecedor.'); }
         },
-        editFornecedor(fornecedor) { this.form = { ...fornecedor }; this.isEditing = true; },
-        cancelEdit() { this.resetForm(); },
-        resetForm() { this.form = { id: null, nome: '', nif: '', morada: '', email: '', categoriaServicos: '' }; this.isEditing = false; },
-    }
-}
+    },
+};
 </script>
+
+<style scoped>
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+</style>

@@ -27,15 +27,23 @@
         <h3>Itens em Stock</h3>
         <table class="table table-striped table-bordered table-hover">
             <thead class="table-dark">
-                <tr><th>Nome</th><th>Descrição</th><th>Qtd</th><th>Ações</th></tr>
+                <tr>
+                    <th>Nome</th>
+                    <th>Descrição</th>
+                    <th>Qtd</th>
+                    <th v-if="userRole === 'ADMIN_TEC'">Editar</th>
+                    <th v-if="userRole === 'ADMIN_TEC'">Excluir</th>
+                </tr>
             </thead>
             <tbody>
                 <tr v-for="item in inventario" :key="item.id">
                     <td>{{ item.nome }}</td>
                     <td>{{ item.descricao }}</td>
                     <td>{{ item.quantidade }}</td>
-                    <td>
+                    <td v-if="userRole === 'ADMIN_TEC'">
                         <button @click="editItem(item)" class="btn btn-sm btn-warning me-2">Modificar</button>
+                    </td>
+                    <td v-if="userRole === 'ADMIN_TEC'">
                         <button @click="deleteItem(item.id)" class="btn btn-sm btn-danger">Eliminar</button>
                     </td>
                 </tr>
@@ -54,6 +62,7 @@ export default {
             inventario: [],
             form: { id: null, nome: '', descricao: '', quantidade: 0 },
             isEditing: false,
+            userRole: localStorage.getItem('userRole'),
         };
     },
     created() { this.fetchInventario(); },
@@ -73,22 +82,30 @@ export default {
                 } else {
                     await axios.post(API_URL, this.form, { headers: { Authorization: `Bearer ${token}` } });
                 }
-                this.resetForm();
+                this.cancelEdit();
                 this.fetchInventario();
-            } catch (error) { alert('Erro ao guardar item.'); }
+            } catch (error) { alert('Erro ao salvar item.'); }
+        },
+        editItem(item) {
+            this.isEditing = true;
+            this.form = { ...item };
+        },
+        cancelEdit() {
+            this.isEditing = false;
+            this.form = { id: null, nome: '', descricao: '', quantidade: 0 };
         },
         async deleteItem(id) {
-            if (confirm('Tem certeza que deseja eliminar este item?')) {
-                const token = localStorage.getItem('userToken');
-                try {
-                    await axios.delete(`${API_URL}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-                    this.fetchInventario();
-                } catch (error) { alert('Erro ao eliminar item.'); }
-            }
+            const token = localStorage.getItem('userToken');
+            try {
+                await axios.delete(`${API_URL}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                this.fetchInventario();
+            } catch (error) { alert('Erro ao eliminar item.'); }
         },
-        editItem(item) { this.form = { ...item }; this.isEditing = true; },
-        cancelEdit() { this.resetForm(); },
-        resetForm() { this.form = { id: null, nome: '', descricao: '', quantidade: 0 }; this.isEditing = false; },
-    }
+    },
 }
 </script>
+
+<style scoped>
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+</style>

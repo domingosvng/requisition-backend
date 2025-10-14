@@ -1,5 +1,4 @@
 import express from 'express';
-import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../entity/User';
 import { AppDataSource } from '../data-source';
@@ -22,10 +21,10 @@ router.post('/register', async (req, res) => {
             return res.status(409).json({ message: 'Username already exists' });
         }
 
-        // Hash the password before saving
-        const password_hash = await bcrypt.hash(password, 10);
-        // Default role is SOLICITANTE
-        const newUser = userRepository.create({ username, password_hash, role: 'SOLICITANTE' });
+    // DEMO ONLY: Store plain password in password_hash
+    const password_hash = password;
+    // Default role is SOLICITANTE
+    const newUser = userRepository.create({ username, password_hash, role: 'SOLICITANTE' });
 
         await userRepository.save(newUser);
 
@@ -51,10 +50,19 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Invalid credentials' });
-        }
+            // --- LOGIN DEBUG ---
+            console.log('--- LOGIN DEBUG ---');
+            console.log(`Input Password: ${password}`); // What the client sent
+            console.log(`DB password_hash: ${user.password_hash}`);
+            // If user.password exists, log it too
+            console.log(`DB password: ${user.password}`);
+            console.log('-------------------');
+            // --- END DEBUG BLOCK ---
+
+            // DEMO ONLY: Compare plain password to password_hash directly
+            if (user.password_hash !== password) {
+                return res.status(401).json({ message: 'Invalid credentials. DEBUG: Check console output.' });
+            }
 
         // Include role in JWT and use env secret
         const token = jwt.sign(

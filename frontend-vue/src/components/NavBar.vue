@@ -1,5 +1,5 @@
 <template>
-  <nav class="app-navbar">
+  <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background-color: #581845; height: 60px;">
     <div class="logo-container">
       <img src="/camafris-logo.png" alt="Logo" class="logo" />
       <span class="system-title">SGR - Gestão de Requisições</span>

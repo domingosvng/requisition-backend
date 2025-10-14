@@ -92,31 +92,16 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'User not found.' });
     let requisicoes;
-    let findOptions = { order: { dataCriacao: 'DESC' as const }, relations: ['solicitante'] };
-    if (user.role === 'GESTOR_DADM' || user.role === 'ADMIN') {
-      requisicoes = await requisicaoRepository.find(findOptions);
-  } else if (user.role === 'ADMIN_TEC' || user.role === 'admin_dept_tech' || user.role === 'SOLICITANTE') {
-      // Show both own requests and those to process
-      const own = await requisicaoRepository.find({
-        ...findOptions,
-        where: { solicitante: { id: user.id } }
-      });
-      const toProcess = await requisicaoRepository.find({
-        ...findOptions,
-        where: { status: In([StatusRequisicao.APROVADA, StatusRequisicao.EM_PROCESSAMENTO, StatusRequisicao.CONCLUIDA]) }
-      });
-      // Merge and deduplicate by id
-      const all = [...own, ...toProcess];
-      const unique = Array.from(new Map(all.map(r => [r.id, r])).values());
-      requisicoes = unique;
-    } else if (user.role === 'requester' || user.role === 'SOLICITANTE') {
-      requisicoes = await requisicaoRepository.find({ 
-        ...findOptions, 
-        where: { solicitante: { id: user.id } } 
-      });
-    } else {
-      requisicoes = await requisicaoRepository.find(findOptions);
-    }
+    let query = requisicaoRepository.createQueryBuilder('requisicao')
+      .leftJoinAndSelect('requisicao.solicitante', 'solicitante')
+      .orderBy('requisicao.id', 'DESC');
+
+    if (user.role === 'SOLICITANTE') {
+      query = query.where('requisicao.solicitanteId = :userId', { userId: user.id });
+    } else if (user.role === 'GESTOR_DADM') {
+      query = query.where('requisicao.status = :status', { status: 'PENDENTE' });
+    } // For ADMIN_TEC and ADMIN, do not add any WHERE clause. They see all requisitions.
+    requisicoes = await query.getMany();
     // Always include all fields in response
     requisicoes = requisicoes.map(r => ({
       id: r.id,
@@ -236,12 +221,11 @@ router.put('/:id/reject', authenticateJWT, async (req: AuthenticatedRequest, res
   }
 });
 
-// Delete a requisition (Admin only)
 router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Only admins can delete requisitions.' });
     }
     const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
@@ -311,12 +295,11 @@ router.put('/:id/status', authenticateJWT, async (req: AuthenticatedRequest, res
 
 export default router;
 
-// Move requisition status to EM_PROCESSAMENTO (Admin Tech only)
 router.put('/:id/process', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || user.role !== 'admin_dept_tech') {
+    if (!user || user.role !== 'ADMIN_TEC') {
       return res.status(403).json({ message: 'Permission denied. Only Admin Tech can start processing.' });
     }
 

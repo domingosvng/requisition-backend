@@ -1,10 +1,17 @@
 <template>
   <div id="app">
-    <NavBar v-if="isAuthenticated" :logout="handleLogout" />
-    <main class="content-area">
+    <NavBar v-if="isAuthenticated" :logout="handleLogout" class="navbar fixed-top" />
+    <div class="main-content">
       <router-view />
-    </main>
+    </div>
   </div>
+/* App.vue Styles */
+.main-content {
+  padding-top: 70px !important;
+}
+body {
+  margin: 0;
+}
 </template>
 
 <script>

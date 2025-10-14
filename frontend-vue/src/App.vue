@@ -47,10 +47,17 @@ export default {
 
 <style>
 /* App.vue Styles */
+#app {
+  background: #1a1a1a;
+  min-height: 100vh;
+}
 .main-content {
   padding-top: 70px !important;
+  background: #1a1a1a;
+  min-height: calc(100vh - 70px);
 }
 body {
   margin: 0;
+  background: #1a1a1a;
 }
 </style>

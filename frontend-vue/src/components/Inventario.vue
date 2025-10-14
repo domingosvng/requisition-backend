@@ -170,9 +170,21 @@ export default {
 </script>
 
 <style scoped>
-h2, h3 {
-  color: #fff;
+/* Override dark theme for this page */
+div {
+  background: #f5f5f5;
+  min-height: calc(100vh - 70px);
+  padding: 20px;
+}
+h2 {
+  color: #333;
   margin-bottom: 18px;
+  text-align: center;
+}
+h3 {
+  color: #3A004D;
+  margin-bottom: 18px;
+  text-align: center;
 }
 .form-container {
   max-width: 600px;
@@ -242,14 +254,20 @@ input, textarea, select {
 }
 .table-container {
   margin-top: 40px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .table-container h3 {
   margin-bottom: 16px;
+  color: #333;
+  text-align: center;
 }
 .alert {
   padding: 12px;
   border-radius: 4px;
   margin-bottom: 16px;
+  text-align: center;
 }
 .alert-info {
   background: #d1ecf1;
@@ -272,6 +290,10 @@ input, textarea, select {
   padding: 12px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  color: #333;
+}
+.dashboard-table th {
+  color: #fff;
 }
 .dashboard-table tbody tr:hover {
   background: #f8f9fa;

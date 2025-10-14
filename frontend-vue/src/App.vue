@@ -1,17 +1,10 @@
 <template>
   <div id="app">
-    <NavBar v-if="isAuthenticated" :logout="handleLogout" class="navbar fixed-top" />
+    <NavBar v-if="isAuthenticated" :logout="handleLogout" />
     <div class="main-content">
       <router-view />
     </div>
   </div>
-/* App.vue Styles */
-.main-content {
-  padding-top: 70px !important;
-}
-body {
-  margin: 0;
-}
 </template>
 
 <script>
@@ -52,8 +45,12 @@ export default {
 };
 </script>
 
-<style scoped>
-.content-area {
-  padding: 32px;
+<style>
+/* App.vue Styles */
+.main-content {
+  padding-top: 70px !important;
+}
+body {
+  margin: 0;
 }
 </style>

@@ -124,6 +124,8 @@ router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0
             fornecedorSugestaoId: r.fornecedorSugestaoId,
             justificativaRejeicao: r.justificativaRejeicao,
             comentarioAprovacao: r.comentarioAprovacao,
+            comentarioGestorDADM: r.comentarioGestorDADM,
+            comentarioAdmin: r.comentarioAdmin,
             responsavelProcessamentoId: r.responsavelProcessamentoId,
             itens: r.itens
         }));

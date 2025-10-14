@@ -114,6 +114,8 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
       fornecedorSugestaoId: r.fornecedorSugestaoId,
       justificativaRejeicao: r.justificativaRejeicao,
       comentarioAprovacao: r.comentarioAprovacao,
+      comentarioGestorDADM: r.comentarioGestorDADM,
+      comentarioAdmin: r.comentarioAdmin,
       responsavelProcessamentoId: r.responsavelProcessamentoId,
       itens: r.itens
     }));

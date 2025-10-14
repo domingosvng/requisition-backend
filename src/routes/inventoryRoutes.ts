@@ -13,7 +13,7 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     // User info is now attached to req.user by middleware
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can view inventory.' });
     }
     const items = await itemRepository.find();
@@ -29,7 +29,7 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
     const { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can create inventory items.' });
     }
     const newItem = itemRepository.create({ nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status });
@@ -47,7 +47,7 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const user = req.user;
     const updateData = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can edit inventory items.' });
     }
     const item = await itemRepository.findOne({ where: { id: Number(id) } });
@@ -66,7 +66,7 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can delete inventory items.' });
     }
     const item = await itemRepository.findOne({ where: { id: Number(id) } });

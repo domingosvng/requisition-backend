@@ -12,7 +12,7 @@ const userRepository = AppDataSource.getRepository(User);
 router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can view suppliers.' });
     }
     const fornecedores = await fornecedorRepository.find();
@@ -28,7 +28,7 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
     const { nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos } = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can create suppliers.' });
     }
     const newFornecedor = fornecedorRepository.create({ nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos });
@@ -46,7 +46,7 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const user = req.user;
     const updateData = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can edit suppliers.' });
     }
     const fornecedor = await fornecedorRepository.findOne({ where: { id: Number(id) } });
@@ -65,7 +65,7 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can delete suppliers.' });
     }
     const fornecedor = await fornecedorRepository.findOne({ where: { id: Number(id) } });

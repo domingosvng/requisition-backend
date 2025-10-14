@@ -54,8 +54,6 @@ router.post('/login', async (req, res) => {
             console.log('--- LOGIN DEBUG ---');
             console.log(`Input Password: ${password}`); // What the client sent
             console.log(`DB password_hash: ${user.password_hash}`);
-            // If user.password exists, log it too
-            console.log(`DB password: ${user.password}`);
             console.log('-------------------');
             // --- END DEBUG BLOCK ---
 

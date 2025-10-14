@@ -46,7 +46,7 @@
 
 <script>
 import axios from 'axios';
-const API_URL = 'http://localhost:3001/api/inventario';
+const API_URL = 'http://localhost:3001/api/inventory';
 
 export default {
     data() {

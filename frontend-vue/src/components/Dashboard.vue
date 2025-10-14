@@ -65,12 +65,12 @@
               <button @click="openModal(req.id, 'APROVADA_MANAGER')" class="btn-approve">Aprovar</button>
               <button @click="openModal(req.id, 'REJEITADA')" class="btn-reject">Rejeitar</button>
             </div>
-            <div v-if="userRole === 'ADMIN' && req.status === 'AGUARDANDO_APROV_FINAL'">
+            <div v-if="userRole === 'ADMIN' && req.status === 'APROVADA_GERENCIA'">
               <button @click="openModal(req.id, 'APROVADA_FINAL')" class="btn btn-sm btn-success">Aprovar Final</button>
               <button @click="openModal(req.id, 'REJEITADA')" class="btn btn-sm btn-danger">Rejeitar</button>
             </div>
-            <div v-else-if="userRole === 'ADMIN'">
-              <button v-if="req.status !== 'APROVADA_FINAL' && req.status !== 'REJEITADA'" @click="deleteRequisicao(req.id)" class="btn btn-sm btn-dark mt-1">Eliminar</button>
+            <div v-else-if="userRole === 'ADMIN' && req.status !== 'APROVADA' && req.status !== 'REJEITADA'">
+              <button @click="deleteRequisicao(req.id)" class="btn btn-sm btn-dark mt-1">Eliminar</button>
             </div>
             <div v-else-if="!['GESTOR_DADM', 'ADMIN'].includes(userRole)">
               <router-link :to="`/requisicoes/${req.id}`" class="btn-view">Ver Detalhes</router-link>

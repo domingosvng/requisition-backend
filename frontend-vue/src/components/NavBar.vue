@@ -43,10 +43,13 @@ const roleDisplay = computed(() => {
   padding: 15px 30px;
   background-color: #3A004D;
   color: white;
+  min-height: 70px;
+  box-sizing: border-box;
 }
 .logo-container {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 .logo {
   height: 40px;
@@ -55,15 +58,18 @@ const roleDisplay = computed(() => {
 .system-title {
   font-weight: bold;
   font-size: 1.2em;
+  white-space: nowrap;
 }
 .nav-links {
   display: flex;
   gap: 18px;
+  align-items: center;
 }
 .nav-link {
   color: #fff;
   text-decoration: none;
   font-weight: 500;
+  white-space: nowrap;
 }
 .nav-link:hover {
   color: #CC0000;
@@ -72,6 +78,10 @@ const roleDisplay = computed(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+}
+.user-greeting {
+  white-space: nowrap;
 }
 .logout-btn {
   background: #CC0000;
@@ -80,6 +90,7 @@ const roleDisplay = computed(() => {
   padding: 6px 16px;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .logout-btn:hover {
   background: #a30000;

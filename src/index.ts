@@ -24,7 +24,9 @@ AppDataSource.initialize()
         app.use('/api/auth', authRoutes);
         app.use('/api/requisicoes', requisicoesRoutes);
         app.use('/api/inventory', inventoryRoutes);
+        app.use('/api/inventario', inventoryRoutes); // Portuguese alias
         app.use('/api/suppliers', suppliersRoutes); // Register suppliers routes
+        app.use('/api/fornecedores', suppliersRoutes); // Portuguese alias
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });

@@ -10,8 +10,29 @@
                         <input type="text" class="form-control" v-model="form.nome" required />
                     </div>
                     <div class="col-md-6">
+                        <label class="form-label">Categoria:</label>
+                        <input type="text" class="form-control" v-model="form.categoria" required />
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label">Quantidade:</label>
                         <input type="number" class="form-control" v-model.number="form.quantidade" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Unidade de Medida:</label>
+                        <input type="text" class="form-control" v-model="form.unidadeMedida" placeholder="Ex: unidade, kg, litro" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Localização:</label>
+                        <input type="text" class="form-control" v-model="form.localizacao" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Status:</label>
+                        <select class="form-control" v-model="form.status" required>
+                            <option value="DISPONIVEL">Disponível</option>
+                            <option value="RESERVADO">Reservado</option>
+                            <option value="EM_USO">Em Uso</option>
+                            <option value="MANUTENCAO">Manutenção</option>
+                        </select>
                     </div>
                     <div class="col-12">
                         <label class="form-label">Descrição:</label>
@@ -27,13 +48,16 @@
         <h3>Itens em Stock</h3>
         <table class="table table-striped table-bordered table-hover">
             <thead class="table-dark">
-                <tr><th>Nome</th><th>Descrição</th><th>Qtd</th><th>Ações</th></tr>
+                <tr><th>Nome</th><th>Categoria</th><th>Qtd</th><th>Unidade</th><th>Localização</th><th>Status</th><th>Ações</th></tr>
             </thead>
             <tbody>
                 <tr v-for="item in inventario" :key="item.id">
                     <td>{{ item.nome }}</td>
-                    <td>{{ item.descricao }}</td>
+                    <td>{{ item.categoria }}</td>
                     <td>{{ item.quantidade }}</td>
+                    <td>{{ item.unidadeMedida }}</td>
+                    <td>{{ item.localizacao }}</td>
+                    <td>{{ item.status }}</td>
                     <td>
                         <button @click="editItem(item)" class="btn btn-sm btn-warning me-2">Modificar</button>
                         <button @click="deleteItem(item.id)" class="btn btn-sm btn-danger">Eliminar</button>
@@ -52,7 +76,16 @@ export default {
     data() {
         return {
             inventario: [],
-            form: { id: null, nome: '', descricao: '', quantidade: 0 },
+            form: { 
+                id: null, 
+                nome: '', 
+                descricao: '', 
+                categoria: '', 
+                quantidade: 0, 
+                unidadeMedida: 'unidade', 
+                localizacao: '', 
+                status: 'DISPONIVEL' 
+            },
             isEditing: false,
         };
     },
@@ -88,7 +121,19 @@ export default {
         },
         editItem(item) { this.form = { ...item }; this.isEditing = true; },
         cancelEdit() { this.resetForm(); },
-        resetForm() { this.form = { id: null, nome: '', descricao: '', quantidade: 0 }; this.isEditing = false; },
+        resetForm() { 
+            this.form = { 
+                id: null, 
+                nome: '', 
+                descricao: '', 
+                categoria: '', 
+                quantidade: 0, 
+                unidadeMedida: 'unidade', 
+                localizacao: '', 
+                status: 'DISPONIVEL' 
+            }; 
+            this.isEditing = false; 
+        },
     }
 }
 </script>

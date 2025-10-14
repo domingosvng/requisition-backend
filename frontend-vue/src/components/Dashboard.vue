@@ -121,6 +121,7 @@ import apiService from '../services/apiService';
 const requisicoes = ref([]);
 const loading = ref(true);
 const error = ref('');
+const serverError = ref('');
 
 const username = localStorage.getItem('username') || 'Usuário';
 const userRole = localStorage.getItem('userRole');

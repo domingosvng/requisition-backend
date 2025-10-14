@@ -24,8 +24,15 @@ export default {
       isAuthenticated: !!localStorage.getItem('userToken'),
     };
   },
+  watch: {
+    '$route'() {
+      // Check authentication status on every route change
+      this.checkAuth();
+    }
+  },
   created() {
     window.addEventListener('storage', this.checkAuth);
+    this.checkAuth(); // Initial check
   },
   unmounted() {
     window.removeEventListener('storage', this.checkAuth);

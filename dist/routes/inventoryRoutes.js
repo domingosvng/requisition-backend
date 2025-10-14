@@ -22,7 +22,7 @@ router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0
     try {
         // User info is now attached to req.user by middleware
         const user = req.user;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC' && user.role !== 'GESTOR_DADM')) {
             return res.status(403).json({ message: 'Only admins or technical admins can view inventory.' });
         }
         const items = yield itemRepository.find();
@@ -38,7 +38,7 @@ router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 
     try {
         const user = req.user;
         const { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC' && user.role !== 'GESTOR_DADM')) {
             return res.status(403).json({ message: 'Only admins or technical admins can create inventory items.' });
         }
         const newItem = itemRepository.create({ nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status });
@@ -56,7 +56,7 @@ router.put('/:id', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(voi
         const { id } = req.params;
         const user = req.user;
         const updateData = req.body;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC' && user.role !== 'GESTOR_DADM')) {
             return res.status(403).json({ message: 'Only admins or technical admins can edit inventory items.' });
         }
         const item = yield itemRepository.findOne({ where: { id: Number(id) } });
@@ -76,7 +76,7 @@ router.delete('/:id', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(
     try {
         const { id } = req.params;
         const user = req.user;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC' && user.role !== 'GESTOR_DADM')) {
             return res.status(403).json({ message: 'Only admins or technical admins can delete inventory items.' });
         }
         const item = yield itemRepository.findOne({ where: { id: Number(id) } });

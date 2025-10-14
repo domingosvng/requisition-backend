@@ -5,10 +5,11 @@
     <form @submit.prevent="saveFornecedor">
       <input type="text" v-model="form.nome" placeholder="Nome" required />
       <input type="text" v-model="form.nif" placeholder="NIF" required />
-      <input type="text" v-model="form.morada" placeholder="Morada" />
+      <input type="text" v-model="form.contactoPrincipal" placeholder="Contacto Principal" required />
+      <input type="text" v-model="form.endereco" placeholder="Endereço" />
       <input type="email" v-model="form.email" placeholder="Email" />
       <input type="tel" v-model="form.telefone" placeholder="Telefone" />
-      <input type="text" v-model="form.categoriaServicos" placeholder="Categoria de Produtos/Serviços" />
+      <input type="text" v-model="form.servicosFornecidos" placeholder="Serviços Fornecidos (separados por vírgula)" />
       <button type="submit">{{ isEditing ? 'Guardar Alterações' : 'Criar Novo Fornecedor' }}</button>
       <button type="button" v-if="isEditing" @click="cancelEdit">Cancelar</button>
     </form>
@@ -20,8 +21,9 @@
         <tr>
           <th>Nome</th>
           <th>NIF</th>
+          <th>Contacto</th>
           <th>Email</th>
-          <th>Categoria</th>
+          <th>Serviços</th>
           <th>Ações</th>
         </tr>
       </thead>
@@ -29,8 +31,9 @@
         <tr v-for="forn in fornecedores" :key="forn.id">
           <td>{{ forn.nome }}</td>
           <td>{{ forn.nif }}</td>
+          <td>{{ forn.contactoPrincipal }}</td>
           <td>{{ forn.email }}</td>
-          <td>{{ forn.categoriaServicos }}</td>
+          <td>{{ Array.isArray(forn.servicosFornecidos) ? forn.servicosFornecidos.join(', ') : forn.servicosFornecidos }}</td>
           <td>
             <button @click="editFornecedor(forn)">Modificar</button>
             <button @click="deleteFornecedor(forn.id)">Eliminar</button>
@@ -46,7 +49,16 @@ import axios from 'axios';
 const API_URL = 'http://localhost:3001/api/fornecedores';
 
 const fornecedores = ref([]);
-const form = ref({ id: null, nome: '', nif: '', morada: '', email: '', telefone: '', categoriaServicos: '' });
+const form = ref({ 
+  id: null, 
+  nome: '', 
+  nif: '', 
+  contactoPrincipal: '', 
+  endereco: '', 
+  email: '', 
+  telefone: '', 
+  servicosFornecidos: '' 
+});
 const isEditing = ref(false);
 
 onMounted(() => {
@@ -66,10 +78,15 @@ async function fetchFornecedores() {
 async function saveFornecedor() {
   const token = localStorage.getItem('userToken');
   try {
+    // Convert servicosFornecidos string to array
+    const dataToSend = {
+      ...form.value,
+      servicosFornecidos: form.value.servicosFornecidos.split(',').map(s => s.trim())
+    };
     if (isEditing.value) {
-      await axios.put(`${API_URL}/${form.value.id}`, form.value, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API_URL}/${form.value.id}`, dataToSend, { headers: { Authorization: `Bearer ${token}` } });
     } else {
-      await axios.post(API_URL, form.value, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(API_URL, dataToSend, { headers: { Authorization: `Bearer ${token}` } });
     }
     resetForm();
     fetchFornecedores();
@@ -91,7 +108,12 @@ async function deleteFornecedor(id) {
 }
 
 function editFornecedor(fornecedor) {
-  form.value = { ...fornecedor };
+  form.value = { 
+    ...fornecedor,
+    servicosFornecidos: Array.isArray(fornecedor.servicosFornecidos) 
+      ? fornecedor.servicosFornecidos.join(', ') 
+      : fornecedor.servicosFornecidos
+  };
   isEditing.value = true;
 }
 
@@ -100,7 +122,16 @@ function cancelEdit() {
 }
 
 function resetForm() {
-  form.value = { id: null, nome: '', nif: '', morada: '', email: '', telefone: '', categoriaServicos: '' };
+  form.value = { 
+    id: null, 
+    nome: '', 
+    nif: '', 
+    contactoPrincipal: '', 
+    endereco: '', 
+    email: '', 
+    telefone: '', 
+    servicosFornecidos: '' 
+  };
   isEditing.value = false;
 }
 </script>

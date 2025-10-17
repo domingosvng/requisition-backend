@@ -1,5 +1,5 @@
 <template>
-  <nav class="app-navbar">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top" style="background-color: #581845; height: 60px;">
     <div class="logo-container">
       <img src="/camafris-logo.png" alt="Logo" class="logo" />
       <span class="system-title">SGR - Gestão de Requisições</span>
@@ -24,7 +24,8 @@ import { computed } from 'vue';
 const props = defineProps({ logout: Function });
 const username = localStorage.getItem('username') || 'Usuário';
 const userRole = localStorage.getItem('userRole');
-const isAdmin = computed(() => userRole === 'ADMIN_TEC' || userRole === 'GESTOR_DADM' || userRole === 'ADMIN');
+// Only true admins and technical admins should see inventory/fornecedores links
+const isAdmin = computed(() => userRole === 'ADMIN_TEC' || userRole === 'ADMIN');
 const roleDisplay = computed(() => {
   const roles = {
     'SOLICITANTE': 'Solicitante',

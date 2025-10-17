@@ -1,110 +1,117 @@
 <template>
-  <div>
-    <h2>Gestão de Inventário</h2>
+    <div class="container mt-4">
+        <h2>Inventário Atual</h2>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
+            <button v-if="canManage" class="btn btn-primary" @click="isEditing = false; resetForm(); showForm=true">Adicionar Item</button>
+            <input v-model="searchQuery" placeholder="Pesquisar inventário..." class="form-control" style="max-width:320px;" @input="filterInventario" />
+        </div>
+        <table class="table table-dark table-striped table-bordered table-hover">
+            <thead>
+                <tr><th>ID</th><th>Nome</th><th>Qtd</th><th>Ações</th></tr>
+            </thead>
+            <tbody>
+                <tr v-for="item in filtered" :key="item.id">
+                    <td>{{ item.id }}</td>
+                    <td>{{ item.nome }}</td>
+                    <td>{{ item.quantidade }}</td>
+                    <td>
+                            <button v-if="canManage" @click="editItem(item)" class="btn btn-sm btn-warning me-2">Editar</button>
+                            <button v-if="canManage" @click="deleteItem(item.id)" class="btn btn-sm btn-danger">Eliminar</button>
+                        </td>
+                </tr>
+            </tbody>
+        </table>
+        <div v-if="inventario.length === 0" class="alert alert-info mt-4">Nenhum item de inventário encontrado.</div>
 
-    <form @submit.prevent="saveItem">
-      <input type="text" v-model="form.nome" placeholder="Nome do Item" required />
-      <input type="text" v-model="form.categoria" placeholder="Categoria" />
-      <input type="number" v-model="form.quantidade" placeholder="Quantidade" required />
-      <input type="text" v-model="form.unidadeMedida" placeholder="Unidade de Medida" />
-      <input type="text" v-model="form.localizacao" placeholder="Localização" />
-      <input type="text" v-model="form.status" placeholder="Status" />
-      <button type="submit">{{ isEditing ? 'Guardar Alterações' : 'Criar Novo Item' }}</button>
-      <button type="button" v-if="isEditing" @click="cancelEdit">Cancelar</button>
-    </form>
-
-    <hr>
-    <h3>Lista de Itens</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Categoria</th>
-          <th>Quantidade</th>
-          <th>Unidade</th>
-          <th>Localização</th>
-          <th>Status</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in itens" :key="item.id">
-          <td>{{ item.nome }}</td>
-          <td>{{ item.categoria }}</td>
-          <td>{{ item.quantidade }}</td>
-          <td>{{ item.unidadeMedida }}</td>
-          <td>{{ item.localizacao }}</td>
-          <td>{{ item.status }}</td>
-          <td>
-            <button @click="editItem(item)">Modificar</button>
-            <button @click="deleteItem(item.id)">Eliminar</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+            <!-- Inline form -->
+            <div v-if="showForm" class="card mt-4 p-3" style="background:#fff;color:#333;">
+                <h3 v-if="isEditing">Editar Item</h3>
+                <h3 v-else>Adicionar Item</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <input v-model="form.nome" placeholder="Nome" class="form-control" />
+                    <input v-model.number="form.quantidade" placeholder="Quantidade" class="form-control" type="number" />
+                    <input v-model="form.descricao" placeholder="Descrição" class="form-control" />
+                    <input v-model="form.categoriaText" placeholder="Categorias (vírgula)" class="form-control" @change="form.categoria = form.categoriaText.split(',').map(s=>s.trim())" />
+                </div>
+                <div style="margin-top:8px;">
+                    <button class="btn btn-success" @click="saveItem">Salvar</button>
+                    <button class="btn btn-secondary" @click="resetForm">Cancelar</button>
+                </div>
+            </div>
+    </div>
 </template>
-<script setup>
-import { ref, onMounted } from 'vue';
+
+<script>
 import axios from 'axios';
 const API_URL = 'http://localhost:3001/api/inventario';
-
-const itens = ref([]);
-const form = ref({ id: null, nome: '', categoria: '', quantidade: 0, unidadeMedida: '', localizacao: '', status: '' });
-const isEditing = ref(false);
-
-onMounted(() => {
-  fetchItens();
-});
-
-async function fetchItens() {
-  const token = localStorage.getItem('userToken');
-  try {
-    const response = await axios.get(API_URL, { headers: { Authorization: `Bearer ${token}` } });
-    itens.value = response.data;
-  } catch (error) {
-    alert('Erro ao carregar itens do inventário.');
-  }
-}
-
-async function saveItem() {
-  const token = localStorage.getItem('userToken');
-  try {
-    if (isEditing.value) {
-      await axios.put(`${API_URL}/${form.value.id}`, form.value, { headers: { Authorization: `Bearer ${token}` } });
-    } else {
-      await axios.post(API_URL, form.value, { headers: { Authorization: `Bearer ${token}` } });
+export default {
+    data() {
+        return {
+            inventario: [],
+            filtered: [],
+            searchQuery: '',
+            form: { id: null, nome: '', quantidade: 0, descricao: '', categoria: [] },
+            isEditing: false,
+            showForm: false,
+            categoriaOptions: ['Hardware','Software','Consumíveis','Serviços']
+        };
+    },
+    computed: {
+        canManage() {
+            const role = localStorage.getItem('userRole');
+            return role === 'ADMIN' || role === 'ADMIN_TEC';
+        }
+    },
+    created() { this.fetchInventario(); },
+    methods: {
+        async fetchInventario() {
+            const token = localStorage.getItem('userToken');
+            try {
+                const response = await axios.get(API_URL, { headers: { Authorization: `Bearer ${token}` } });
+                this.inventario = response.data;
+                this.filtered = this.inventario.slice();
+            } catch (error) { console.error('Erro ao carregar inventário.', error); }
+        },
+    editItem(item) { this.form = { ...item, categoriaText: (item.categoria||[]).join(', ') }; this.isEditing = true; this.showForm = true; },
+        async saveItem() {
+            const token = localStorage.getItem('userToken');
+            try {
+                if (this.isEditing && this.form.id) {
+                    await axios.put(`${API_URL}/${this.form.id}`, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                } else {
+                    await axios.post(API_URL, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                }
+                this.resetForm();
+                this.fetchInventario();
+            } catch (err) {
+                console.error('Erro ao salvar item', err);
+                const msg = err.response?.data?.message || err.response?.data || err.message || 'Erro ao salvar item';
+                alert(msg);
+            }
+        },
+        async deleteItem(id) { 
+            if (!confirm('Confirmar eliminação?')) return;
+            const token = localStorage.getItem('userToken');
+            try {
+                await axios.delete(`${API_URL}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                this.fetchInventario();
+            } catch (err) {
+                console.error('Erro ao apagar item', err);
+                const msg = err.response?.data?.message || err.response?.data || err.message || 'Erro ao apagar item';
+                alert(msg);
+            }
+        },
+        resetForm() { this.form = { id: null, nome: '', quantidade: 0, descricao: '', categoria: [] }; this.isEditing = false; this.showForm = false; },
+        filterInventario() {
+            const q = this.searchQuery.trim().toLowerCase();
+            if (!q) { this.filtered = this.inventario.slice(); return; }
+            this.filtered = this.inventario.filter(i => (i.nome||'').toLowerCase().includes(q) || (i.descricao||'').toLowerCase().includes(q) || (i.categoria||[]).some(c=>c.toLowerCase().includes(q)));
+        }
     }
-    resetForm();
-    fetchItens();
-  } catch (error) {
-    alert('Erro ao guardar item.');
-  }
-}
-
-async function deleteItem(id) {
-  if (confirm('Tem certeza que deseja eliminar este item?')) {
-    const token = localStorage.getItem('userToken');
-    try {
-      await axios.delete(`${API_URL}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      fetchItens();
-    } catch (error) {
-      alert('Erro ao eliminar item.');
-    }
-  }
-}
-
-function editItem(item) {
-  form.value = { ...item };
-  isEditing.value = true;
-}
-
-function cancelEdit() {
-  resetForm();
-}
-
-function resetForm() {
-  form.value = { id: null, nome: '', categoria: '', quantidade: 0, unidadeMedida: '', localizacao: '', status: '' };
-  isEditing.value = false;
 }
 </script>
+
+<style scoped>
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+</style>

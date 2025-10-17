@@ -7,6 +7,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const database_1 = __importDefault(require("./database")); // Importa o objeto padrão que contém pool e connectDb
 const requisicoesRoutes_1 = __importDefault(require("./routes/requisicoesRoutes"));
+const inventoryRoutes_1 = __importDefault(require("./routes/inventoryRoutes"));
+const suppliersRoutes_1 = __importDefault(require("./routes/suppliersRoutes"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3001;
 app.use(express_1.default.json());
@@ -18,6 +20,9 @@ app.get('/', (req, res) => {
 });
 // Usar as rotas de requisições
 app.use('/api/requisicoes', requisicoesRoutes_1.default);
+// Mount inventory and suppliers routes
+app.use('/api/inventario', inventoryRoutes_1.default);
+app.use('/api/suppliers', suppliersRoutes_1.default);
 // Iniciar o servidor
 app.listen(port, () => {
     console.log(`Servidor backend a correr em http://localhost:${port}`);

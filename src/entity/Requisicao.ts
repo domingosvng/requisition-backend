@@ -3,6 +3,7 @@ import { User } from "./User";
 
 export enum StatusRequisicao {
   PENDENTE = 'PENDENTE',
+  AGUARDANDO_APROV_FINAL = 'AGUARDANDO_APROV_FINAL',
   APROVADA_GERENCIA = 'APROVADA_GERENCIA',
   APROVADA = 'APROVADA',
   REJEITADA = 'REJEITADA',
@@ -13,11 +14,6 @@ export enum StatusRequisicao {
 @Entity()
 // Represents a requisition in the system.
 export class Requisicao {
-  @Column({ nullable: true })
-  comentarioGestorDADM?: string;
-
-  @Column({ nullable: true })
-  comentarioAdmin?: string;
   @PrimaryGeneratedColumn()
   id!: number;
 
@@ -52,7 +48,21 @@ export class Requisicao {
   justificativaRejeicao?: string;
 
   @Column({ nullable: true })
+  comentarioGestorDADM?: string;
+
+  @Column({ nullable: true })
+  comentarioAdmin?: string;
+
+  @Column({ nullable: true })
   comentarioAprovacao?: string;
+
+  @Column({ nullable: true })
+  lastActionBy?: string;
+
+  @Column({ nullable: true })
+  lastActionRole?: string;
+
+  // ...existing code...
 
   @Column({ nullable: true })
   responsavelProcessamentoId?: string;

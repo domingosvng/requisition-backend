@@ -37,16 +37,25 @@ router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0
 router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const user = req.user;
-        const { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
+        let { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
         if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
             return res.status(403).json({ message: 'Only admins or technical admins can create inventory items.' });
         }
+        // Normalize inputs
+        if (Array.isArray(categoria)) {
+            categoria = categoria.join(', ');
+        }
+        quantidade = Number(quantidade || 0);
+        unidadeMedida = unidadeMedida || '';
+        localizacao = localizacao || '';
+        status = status || 'ATIVO';
         const newItem = itemRepository.create({ nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status });
         yield itemRepository.save(newItem);
         res.status(201).json(newItem);
     }
     catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error('Failed to create inventory item:', error);
         res.status(500).json({ message: 'Erro interno ao criar item de inventário.', error: errorMsg });
     }
 }));

@@ -92,31 +92,18 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'User not found.' });
     let requisicoes;
-    let findOptions = { order: { dataCriacao: 'DESC' as const }, relations: ['solicitante'] };
-    if (user.role === 'GESTOR_DADM' || user.role === 'ADMIN') {
-      requisicoes = await requisicaoRepository.find(findOptions);
-  } else if (user.role === 'ADMIN_TEC' || user.role === 'admin_dept_tech' || user.role === 'SOLICITANTE') {
-      // Show both own requests and those to process
-      const own = await requisicaoRepository.find({
-        ...findOptions,
-        where: { solicitante: { id: user.id } }
-      });
-      const toProcess = await requisicaoRepository.find({
-        ...findOptions,
-        where: { status: In([StatusRequisicao.APROVADA, StatusRequisicao.EM_PROCESSAMENTO, StatusRequisicao.CONCLUIDA]) }
-      });
-      // Merge and deduplicate by id
-      const all = [...own, ...toProcess];
-      const unique = Array.from(new Map(all.map(r => [r.id, r])).values());
-      requisicoes = unique;
-    } else if (user.role === 'requester' || user.role === 'SOLICITANTE') {
-      requisicoes = await requisicaoRepository.find({ 
-        ...findOptions, 
-        where: { solicitante: { id: user.id } } 
-      });
-    } else {
-      requisicoes = await requisicaoRepository.find(findOptions);
-    }
+    let query = requisicaoRepository.createQueryBuilder('requisicao')
+      .leftJoinAndSelect('requisicao.solicitante', 'solicitante')
+      .orderBy('requisicao.id', 'DESC');
+
+    if (user.role === 'SOLICITANTE') {
+      query = query.where('requisicao.solicitanteId = :userId', { userId: user.id });
+    } else if (user.role === 'GESTOR_DADM') {
+      // Managers should see pending requests and also see the result after admin/manager actions
+      const statuses = ['PENDENTE', 'AGUARDANDO_APROV_FINAL', 'APROVADA_GERENCIA', 'APROVADA', 'REJEITADA'];
+      query = query.where('requisicao.status IN (:...statuses)', { statuses });
+    } // For ADMIN_TEC and ADMIN, do not add any WHERE clause. They see all requisitions.
+    requisicoes = await query.getMany();
     // Always include all fields in response
     requisicoes = requisicoes.map(r => ({
       id: r.id,
@@ -128,7 +115,12 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
       observacoes: r.observacoes,
       fornecedorSugestaoId: r.fornecedorSugestaoId,
       justificativaRejeicao: r.justificativaRejeicao,
-      comentarioAprovacao: r.comentarioAprovacao,
+  comentarioAdmin: (r as any).comentarioAdmin || null,
+  comentarioGestorDADM: (r as any).comentarioGestorDADM || null,
+  comentarioAprovacao: (r as any).comentarioAprovacao || null,
+  lastActionBy: (r as any).lastActionBy || null,
+  lastActionRole: (r as any).lastActionRole || null,
+  // ...existing code...
       responsavelProcessamentoId: r.responsavelProcessamentoId,
       itens: r.itens
     }));
@@ -156,51 +148,41 @@ router.get('/:id', async (req, res) => {
 router.put('/:id/approve', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
-    const { comment } = req.body;
+  // Remove comment logic
     const user = req.user;
     if (!user) {
       return res.status(401).json({ message: 'User authentication required.' });
     }
     const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
     if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
-    let isStatusValid = false;
-    // --- 1. GESTOR_DADM (Tier 1 Review/Approval) ---
+    // Strict role/status enforcement
     if (user.role === 'GESTOR_DADM') {
-      if (requisicao.status === StatusRequisicao.PENDENTE) {
-        requisicao.status = StatusRequisicao.APROVADA_GERENCIA;
-        requisicao.comentarioGestorDADM = comment || '';
-        isStatusValid = true;
+      if (requisicao.status !== StatusRequisicao.PENDENTE) {
+        return res.status(403).json({ message: 'Requisition is not in the correct status for this action (Expected: PENDENTE).' });
       }
+      requisicao.status = StatusRequisicao.AGUARDANDO_APROV_FINAL;
+      await requisicaoRepository.save(requisicao);
+      return res.status(200).json(requisicao);
     }
-    // --- 2. ADMIN (Tier 2 Final Approval) ---
     else if (user.role === 'ADMIN') {
-      if (requisicao.status === StatusRequisicao.APROVADA_GERENCIA) {
-        requisicao.status = StatusRequisicao.APROVADA;
-        requisicao.comentarioAdmin = comment || '';
-        isStatusValid = true;
-        // Inventory Deduction Logic
-        for (const item of requisicao.itens) {
-          if (item.itemId) {
-            const inventoryItem = await itemInventarioRepository.findOne({ where: { id: item.itemId } });
-            if (inventoryItem) {
-              inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
-              await itemInventarioRepository.save(inventoryItem);
-            }
+      if (requisicao.status !== StatusRequisicao.AGUARDANDO_APROV_FINAL) {
+        return res.status(403).json({ message: 'Requisition is not in the correct status for this action (Expected: AGUARDANDO_APROV_FINAL).' });
+      }
+      requisicao.status = StatusRequisicao.APROVADA;
+      // Inventory Deduction Logic
+      for (const item of requisicao.itens) {
+        if (item.itemId) {
+          const inventoryItem = await itemInventarioRepository.findOne({ where: { id: item.itemId } });
+          if (inventoryItem) {
+            inventoryItem.quantidade = inventoryItem.quantidade - item.quantidade;
+            await itemInventarioRepository.save(inventoryItem);
           }
         }
       }
-      // Admin can cancel/delete
-      else if (comment === 'CANCELADA' || comment === 'DELETE') {
-        requisicao.status = StatusRequisicao.REJEITADA;
-        requisicao.justificativaRejeicao = 'Cancelada/Deletada pelo Admin';
-        isStatusValid = true;
-      }
+      await requisicaoRepository.save(requisicao);
+      return res.status(200).json(requisicao);
     }
-    if (!isStatusValid) {
-      return res.status(403).json({ message: 'Permission denied or requisition is not in the correct status for your approval tier.' });
-    }
-    await requisicaoRepository.save(requisicao);
-    res.status(200).json(requisicao);
+    return res.status(403).json({ message: 'Permission denied for this role.' });
   } catch (error) {
     console.error('Erro ao aprovar requisição:', error);
     res.status(500).json({ message: 'Erro interno do servidor ao aprovar requisição.' });
@@ -218,30 +200,37 @@ router.put('/:id/reject', authenticateJWT, async (req: AuthenticatedRequest, res
     }
     const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
     if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
-    // CLEANUP: Use direct enum comparison
-    if (
-      (user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE) ||
-      (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA)
-    ) {
+    // Strict role/status enforcement
+    if (user.role === 'GESTOR_DADM') {
+      if (requisicao.status !== StatusRequisicao.PENDENTE) {
+        return res.status(403).json({ message: 'Requisition is not in the correct status for this action (Expected: PENDENTE).' });
+      }
       requisicao.status = StatusRequisicao.REJEITADA;
       requisicao.justificativaRejeicao = comment || '';
       await requisicaoRepository.save(requisicao);
-      res.status(200).json(requisicao);
-    } else {
-      return res.status(403).json({ message: 'Permission denied or requisition is not in the correct status for rejection.' });
+      return res.status(200).json(requisicao);
     }
+    else if (user.role === 'ADMIN') {
+      if (requisicao.status !== StatusRequisicao.AGUARDANDO_APROV_FINAL) {
+        return res.status(403).json({ message: 'Requisition is not in the correct status for this action (Expected: AGUARDANDO_APROV_FINAL).' });
+      }
+      requisicao.status = StatusRequisicao.REJEITADA;
+      requisicao.justificativaRejeicao = comment || '';
+      await requisicaoRepository.save(requisicao);
+      return res.status(200).json(requisicao);
+    }
+    return res.status(403).json({ message: 'Permission denied for this role.' });
   } catch (error) {
     console.error('Erro ao rejeitar requisição:', error);
     res.status(500).json({ message: 'Erro interno do servidor ao rejeitar requisição.' });
   }
 });
 
-// Delete a requisition (Admin only)
 router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Only admins can delete requisitions.' });
     }
     const requisicao = await requisicaoRepository.findOne({ where: { id: Number(id) } });
@@ -268,14 +257,20 @@ router.put('/:id/status', authenticateJWT, async (req: AuthenticatedRequest, res
     if (!requisicao) return res.status(404).json({ message: 'Requisition not found.' });
 
     // Approval by Manager
-    if (user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE && newStatus === 'APROVADA_MANAGER') {
-      requisicao.status = StatusRequisicao.APROVADA_GERENCIA;
-      requisicao.comentarioGestorDADM = comentario || '';
+    if (user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE && (newStatus === 'APROVADA_MANAGER' || newStatus === 'AGUARDANDO_APROV_FINAL')) {
+      // Accept both possible manager verbs: 'APROVADA_MANAGER' (legacy) and 'AGUARDANDO_APROV_FINAL'
+      // Set to AGUARDANDO_APROV_FINAL to indicate manager approved and awaiting final admin approval
+      requisicao.status = StatusRequisicao.AGUARDANDO_APROV_FINAL;
+      // Save manager comment if provided
+      if (comentario) requisicao.comentarioGestorDADM = comentario;
+      requisicao.lastActionBy = user.id.toString();
+      requisicao.lastActionRole = user.role;
     }
     // Final Approval by Admin
-    else if (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA && newStatus === 'APROVADA_FINAL') {
+    else if (user.role === 'ADMIN' && (requisicao.status === StatusRequisicao.APROVADA_GERENCIA || requisicao.status === StatusRequisicao.AGUARDANDO_APROV_FINAL || requisicao.status === StatusRequisicao.PENDENTE) && newStatus === 'APROVADA_FINAL') {
+      // Admin may finalize when the request is either APROVADA_GERENCIA, AGUARDANDO_APROV_FINAL or PENDENTE (allow admin to shortcut manager step)
       requisicao.status = StatusRequisicao.APROVADA;
-      requisicao.comentarioAdmin = comentario || '';
+  // ...existing code...
       // Inventory deduction logic
       for (const item of requisicao.itens) {
         if (item.itemId) {
@@ -286,12 +281,18 @@ router.put('/:id/status', authenticateJWT, async (req: AuthenticatedRequest, res
           }
         }
       }
+      requisicao.lastActionBy = user.id.toString();
+      requisicao.lastActionRole = user.role;
     }
     // Rejection by Manager or Admin
     else if ((user.role === 'GESTOR_DADM' && requisicao.status === StatusRequisicao.PENDENTE && newStatus === 'REJEITADA') ||
-             (user.role === 'ADMIN' && requisicao.status === StatusRequisicao.APROVADA_GERENCIA && newStatus === 'REJEITADA')) {
+             (user.role === 'ADMIN' && (requisicao.status === StatusRequisicao.APROVADA_GERENCIA || requisicao.status === StatusRequisicao.AGUARDANDO_APROV_FINAL || requisicao.status === StatusRequisicao.PENDENTE) && newStatus === 'REJEITADA')) {
       requisicao.status = StatusRequisicao.REJEITADA;
-      requisicao.justificativaRejeicao = comentario || '';
+      // Save both justificativa and admin comment where appropriate
+      requisicao.justificativaRejeicao = comentario || requisicao.justificativaRejeicao || '';
+      if (user.role === 'ADMIN' && comentario) requisicao.comentarioAdmin = comentario;
+      requisicao.lastActionBy = user.id.toString();
+      requisicao.lastActionRole = user.role;
     }
     // Deletion by Admin
     else if (user.role === 'ADMIN' && newStatus === 'DELETE') {
@@ -311,12 +312,11 @@ router.put('/:id/status', authenticateJWT, async (req: AuthenticatedRequest, res
 
 export default router;
 
-// Move requisition status to EM_PROCESSAMENTO (Admin Tech only)
 router.put('/:id/process', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || user.role !== 'admin_dept_tech') {
+    if (!user || user.role !== 'ADMIN_TEC') {
       return res.status(403).json({ message: 'Permission denied. Only Admin Tech can start processing.' });
     }
 

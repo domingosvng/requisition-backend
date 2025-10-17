@@ -23,8 +23,10 @@ AppDataSource.initialize()
         console.log("Database connection initialized successfully!");
         app.use('/api/auth', authRoutes);
         app.use('/api/requisicoes', requisicoesRoutes);
-        app.use('/api/inventory', inventoryRoutes);
-        app.use('/api/suppliers', suppliersRoutes); // Register suppliers routes
+    app.use('/api/inventory', inventoryRoutes);
+    // Also accept Portuguese path for legacy frontends
+    app.use('/api/inventario', inventoryRoutes);
+    app.use('/api/suppliers', suppliersRoutes); // Register suppliers routes
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });

@@ -1,6 +1,6 @@
 import express from 'express';
-import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import { User } from '../entity/User';
 import { AppDataSource } from '../data-source';
 
@@ -22,14 +22,11 @@ router.post('/register', async (req, res) => {
             return res.status(409).json({ message: 'Username already exists' });
         }
 
-        // Hash the password before saving
-        const password_hash = await bcrypt.hash(password, 10);
-        // Default role is SOLICITANTE
-        const newUser = userRepository.create({ username, password_hash, role: 'SOLICITANTE' });
-
-        await userRepository.save(newUser);
-
-        res.status(201).json({ message: 'User registered successfully' });
+    // Default role is SOLICITANTE
+    const hashed = await bcrypt.hash(password, 10);
+    const newUser = userRepository.create({ username, role: 'SOLICITANTE', password_hash: hashed });
+    await userRepository.save(newUser);
+        res.status(201).json({ message: 'User registered successfully', user: { id: newUser.id, username: newUser.username, role: newUser.role } });
     } catch (error) {
         console.error('Registration failed:', error);
         res.status(500).json({ message: 'Registration failed' });
@@ -42,19 +39,37 @@ router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
+        // We need password_hash when present, so explicitly select it
         const user = await userRepository.findOne({
             where: { username },
-            select: ['id', 'username', 'role', 'password_hash']
+            select: ['id', 'username', 'role', 'password_hash'] as any
         });
 
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+        // If there's a password_hash, verify with bcrypt. If not (legacy/dev account), accept
+        // the fallback where password equals username, then hash & save the provided password
+        let passwordOk = false;
+        if (user.password_hash) {
+            passwordOk = await bcrypt.compare(password, user.password_hash);
+        } else {
+            // legacy behavior: password must equal username
+            if (password === user.username) {
+                passwordOk = true;
+                // Hash and save the provided password for future logins
+                try {
+                    const newHash = await bcrypt.hash(password, 10);
+                    user.password_hash = newHash;
+                    await userRepository.save(user);
+                } catch (e) {
+                    console.error('Failed to migrate legacy password to hash:', e);
+                }
+            }
         }
+
+        if (!passwordOk) return res.status(401).json({ message: 'Credenciais inválidas' });
 
         // Include role in JWT and use env secret
         const token = jwt.sign(

@@ -8,12 +8,12 @@ const router = Router();
 const itemRepository = AppDataSource.getRepository(ItemInventario);
 const userRepository = AppDataSource.getRepository(User);
 
-// Get all inventory items (admin/manager only)
+// Get all inventory items (admin only)
 router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     // User info is now attached to req.user by middleware
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can view inventory.' });
     }
     const items = await itemRepository.find();
@@ -28,15 +28,27 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
 router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
-    const { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    let { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can create inventory items.' });
     }
+    // Normalize inputs: categoria may be array from frontend, quantidade may be string
+    if (Array.isArray(categoria)) {
+      categoria = categoria.join(', ');
+    } else if (typeof categoria !== 'string') {
+      categoria = String(categoria || '');
+    }
+    quantidade = Number(quantidade || 0);
+    unidadeMedida = unidadeMedida || '';
+    localizacao = localizacao || '';
+    status = status || 'ATIVO';
+
     const newItem = itemRepository.create({ nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status });
     await itemRepository.save(newItem);
     res.status(201).json(newItem);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Failed to create inventory item:', error);
     res.status(500).json({ message: 'Erro interno ao criar item de inventário.', error: errorMsg });
   }
 });
@@ -47,7 +59,7 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const user = req.user;
     const updateData = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can edit inventory items.' });
     }
     const item = await itemRepository.findOne({ where: { id: Number(id) } });
@@ -66,7 +78,7 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can delete inventory items.' });
     }
     const item = await itemRepository.findOne({ where: { id: Number(id) } });

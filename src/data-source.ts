@@ -15,7 +15,8 @@ export const AppDataSource = new DataSource({
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
-    synchronize: true,
+    // Disable automatic schema synchronization to prevent unexpected ALTERs; use migrations in production
+    synchronize: false,
     logging: false,
     entities: [User, Requisicao, Fornecedor, ItemInventario],
     migrations: [],

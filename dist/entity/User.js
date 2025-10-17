@@ -24,10 +24,6 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "username", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
-], User.prototype, "password_hash", void 0);
-__decorate([
     (0, typeorm_1.Column)({ default: "SOLICITANTE" }),
     __metadata("design:type", String)
 ], User.prototype, "role", void 0);

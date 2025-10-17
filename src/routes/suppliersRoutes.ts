@@ -12,7 +12,7 @@ const userRepository = AppDataSource.getRepository(User);
 router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can view suppliers.' });
     }
     const fornecedores = await fornecedorRepository.find();
@@ -28,10 +28,14 @@ router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
     const { nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos } = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can create suppliers.' });
     }
-    const newFornecedor = fornecedorRepository.create({ nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos });
+    // Normalize servicosFornecidos if client sent a comma-separated string
+    const normalizedServicos = Array.isArray(servicosFornecidos)
+      ? servicosFornecidos
+      : (typeof servicosFornecidos === 'string' ? servicosFornecidos.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const newFornecedor = fornecedorRepository.create({ nome, contactoPrincipal, email, telefone, nif, endereco, servicosFornecidos: normalizedServicos });
     await fornecedorRepository.save(newFornecedor);
     res.status(201).json(newFornecedor);
   } catch (error) {
@@ -46,11 +50,15 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const user = req.user;
     const updateData = req.body;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can edit suppliers.' });
     }
     const fornecedor = await fornecedorRepository.findOne({ where: { id: Number(id) } });
     if (!fornecedor) return res.status(404).json({ message: 'Supplier not found.' });
+    // Normalize services if provided as string
+    if (updateData && typeof updateData.servicosFornecidos === 'string') {
+      updateData.servicosFornecidos = updateData.servicosFornecidos.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
     Object.assign(fornecedor, updateData);
     await fornecedorRepository.save(fornecedor);
     res.status(200).json(fornecedor);
@@ -65,7 +73,7 @@ router.delete('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) =>
   try {
     const { id } = req.params;
     const user = req.user;
-    if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can delete suppliers.' });
     }
     const fornecedor = await fornecedorRepository.findOne({ where: { id: Number(id) } });

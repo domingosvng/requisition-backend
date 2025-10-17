@@ -1,9 +1,9 @@
 <template>
   <div id="app">
-    <NavBar v-if="isAuthenticated" :logout="handleLogout" />
-    <main class="content-area">
+    <NavBar v-if="isAuthenticated" :logout="handleLogout" class="navbar fixed-top" />
+    <div class="main-content">
       <router-view />
-    </main>
+    </div>
   </div>
 </template>
 
@@ -39,7 +39,15 @@ export default {
 </script>
 
 <style scoped>
-.content-area {
-  padding: 32px;
+body {
+  margin: 0;
+  background: #f7f7fa;
+}
+.main-content {
+  min-height: calc(100vh - 70px);
+  padding-top: 70px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 </style>

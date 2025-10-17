@@ -10,11 +10,9 @@ export class User {
 
     @Column({ unique: true })
     username!: string;
-
-
-    @Column()
-    password_hash!: string;
-
     @Column({ default: "SOLICITANTE" })
     role!: string; // e.g., 'SOLICITANTE', 'GESTOR_DADM', 'ADMIN_TEC'
+    // Optional password hash (nullable for migration/backwards compatibility)
+    @Column({ type: 'varchar', nullable: true })
+    password_hash?: string | null;
 }

@@ -25,6 +25,8 @@ data_source_1.AppDataSource.initialize()
     app.use('/api/auth', auth_1.default);
     app.use('/api/requisicoes', requisicoesRoutes_1.default);
     app.use('/api/inventory', inventoryRoutes_1.default);
+    // Also mount Portuguese path to support frontends that call /api/inventario
+    app.use('/api/inventario', inventoryRoutes_1.default);
     app.use('/api/suppliers', suppliersRoutes_1.default); // Register suppliers routes
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);

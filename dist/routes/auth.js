@@ -13,8 +13,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const bcrypt_1 = __importDefault(require("bcrypt"));
 const User_1 = require("../entity/User");
 const data_source_1 = require("../data-source");
 const router = express_1.default.Router();
@@ -31,10 +31,9 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
         if (existingUser) {
             return res.status(409).json({ message: 'Username already exists' });
         }
-        // Hash the password before saving
-        const password_hash = yield bcrypt_1.default.hash(password, 10);
-        // Default role is SOLICITANTE
-        const newUser = userRepository.create({ username, password_hash, role: 'SOLICITANTE' });
+    // Default role is SOLICITANTE
+    const hashed = yield bcrypt_1.default.hash(password, 10);
+    const newUser = userRepository.create({ username, role: 'SOLICITANTE', password_hash: hashed });
         yield userRepository.save(newUser);
         res.status(201).json({ message: 'User registered successfully' });
     }
@@ -55,8 +54,22 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-        const isPasswordValid = yield bcrypt_1.default.compare(password, user.password_hash);
-        if (!isPasswordValid) {
+        let passwordOk = false;
+        if (user.password_hash) {
+            passwordOk = yield bcrypt_1.default.compare(password, user.password_hash);
+        }
+        else if (password === user.username) {
+            passwordOk = true;
+            try {
+                const newHash = yield bcrypt_1.default.hash(password, 10);
+                user.password_hash = newHash;
+                yield userRepository.save(user);
+            }
+            catch (e) {
+                console.error('Failed to migrate legacy password to hash:', e);
+            }
+        }
+        if (!passwordOk) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
         // Include role in JWT and use env secret

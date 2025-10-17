@@ -19,7 +19,7 @@ exports.AppDataSource = new typeorm_1.DataSource({
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
-    // Disable automatic schema synchronization for helper scripts to avoid runtime ALTERs
+    // Disable automatic schema synchronization to prevent unexpected ALTERs; use migrations in production
     synchronize: false,
     logging: false,
     entities: [User_1.User, Requisicao_1.Requisicao, Fornecedor_1.Fornecedor, ItemInventario_1.ItemInventario],

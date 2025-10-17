@@ -15,6 +15,7 @@ const User_1 = require("./User");
 var StatusRequisicao;
 (function (StatusRequisicao) {
     StatusRequisicao["PENDENTE"] = "PENDENTE";
+    StatusRequisicao["AGUARDANDO_APROV_FINAL"] = "AGUARDANDO_APROV_FINAL";
     StatusRequisicao["APROVADA_GERENCIA"] = "APROVADA_GERENCIA";
     StatusRequisicao["APROVADA"] = "APROVADA";
     StatusRequisicao["REJEITADA"] = "REJEITADA";
@@ -24,14 +25,6 @@ var StatusRequisicao;
 let Requisicao = class Requisicao {
 };
 exports.Requisicao = Requisicao;
-__decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", String)
-], Requisicao.prototype, "comentarioGestorDADM", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", String)
-], Requisicao.prototype, "comentarioAdmin", void 0);
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)(),
     __metadata("design:type", Number)
@@ -79,7 +72,23 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], Requisicao.prototype, "comentarioGestorDADM", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Requisicao.prototype, "comentarioAdmin", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], Requisicao.prototype, "comentarioAprovacao", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Requisicao.prototype, "lastActionBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Requisicao.prototype, "lastActionRole", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)

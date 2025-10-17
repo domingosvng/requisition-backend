@@ -1,8 +1,8 @@
 <template>
-  <div>
-    <h2 style="color:#3A004D;">Dashboard</h2>
+  <div class="dashboard-container">
+    <h2>Dashboard</h2>
     <div class="user-info-panel">
-      <span style="color:#3A004D; font-size:1.1em;">
+      <span class="user-info-text">
         Usuário: <strong>{{ username }}</strong> | Papel: <strong>{{ roleDisplay }}</strong>
       </span>
     </div>
@@ -15,7 +15,7 @@
       <template v-else-if="userRole === 'ADMIN'">Nenhum pedido aguardando ação administrativa.</template>
       <template v-else>Use o botão "Novo Pedido" para criar um.</template>
     </div>
-    <table v-else class="dashboard-table">
+  <table v-else class="dashboard-table">
       <thead>
         <tr>
           <th>ID</th>
@@ -202,6 +202,21 @@ export default {
 <style scoped>
 body {
   background: #f7f7fa;
+}
+.dashboard-container {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  color: #2a2a2a;
+}
+.dashboard-container h2 {
+  color: #3A004D;
+  margin: 0 0 12px 0;
+}
+.user-info-text {
+  color: #3A004D;
+  font-size: 1.05em;
 }
 .dashboard-table {
   width: 100%;

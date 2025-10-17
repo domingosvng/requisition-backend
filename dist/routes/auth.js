@@ -31,11 +31,11 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
         if (existingUser) {
             return res.status(409).json({ message: 'Username already exists' });
         }
-    // Default role is SOLICITANTE
-    const hashed = yield bcrypt_1.default.hash(password, 10);
-    const newUser = userRepository.create({ username, role: 'SOLICITANTE', password_hash: hashed });
+        // Default role is SOLICITANTE
+        const hashed = yield bcrypt_1.default.hash(password, 10);
+        const newUser = userRepository.create({ username, role: 'SOLICITANTE', password_hash: hashed });
         yield userRepository.save(newUser);
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({ message: 'User registered successfully', user: { id: newUser.id, username: newUser.username, role: newUser.role } });
     }
     catch (error) {
         console.error('Registration failed:', error);
@@ -47,6 +47,7 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
 router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { username, password } = req.body;
+        // We need password_hash when present, so explicitly select it
         const user = yield userRepository.findOne({
             where: { username },
             select: ['id', 'username', 'role', 'password_hash']
@@ -54,24 +55,29 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
+        // If there's a password_hash, verify with bcrypt. If not (legacy/dev account), accept
+        // the fallback where password equals username, then hash & save the provided password
         let passwordOk = false;
         if (user.password_hash) {
             passwordOk = yield bcrypt_1.default.compare(password, user.password_hash);
         }
-        else if (password === user.username) {
-            passwordOk = true;
-            try {
-                const newHash = yield bcrypt_1.default.hash(password, 10);
-                user.password_hash = newHash;
-                yield userRepository.save(user);
-            }
-            catch (e) {
-                console.error('Failed to migrate legacy password to hash:', e);
+        else {
+            // legacy behavior: password must equal username
+            if (password === user.username) {
+                passwordOk = true;
+                // Hash and save the provided password for future logins
+                try {
+                    const newHash = yield bcrypt_1.default.hash(password, 10);
+                    user.password_hash = newHash;
+                    yield userRepository.save(user);
+                }
+                catch (e) {
+                    console.error('Failed to migrate legacy password to hash:', e);
+                }
             }
         }
-        if (!passwordOk) {
-            return res.status(401).json({ message: 'Invalid credentials' });
-        }
+        if (!passwordOk)
+            return res.status(401).json({ message: 'Credenciais inválidas' });
         // Include role in JWT and use env secret
         const token = jsonwebtoken_1.default.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
         res.status(200).json({

@@ -2,9 +2,7 @@
   "compilerOptions": {
     "target": "es6",
     "module": "commonjs",
-    "lib": [
-      "es6"
-    ],
+    "lib": ["es6"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "moduleResolution": "node",
@@ -12,8 +10,8 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-      "outDir": "./dist",
-      "rootDir": "./src"
-    },
-    "exclude": ["frontend", "frontend-vue", "node_modules"]
-  }
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "exclude": ["frontend", "frontend-vue", "node_modules", "scripts"]
+}

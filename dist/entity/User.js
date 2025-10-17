@@ -27,6 +27,10 @@ __decorate([
     (0, typeorm_1.Column)({ default: "SOLICITANTE" }),
     __metadata("design:type", String)
 ], User.prototype, "role", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", Object)
+], User.prototype, "password_hash", void 0);
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)({ name: "user" })
     // Represents a user in the system.

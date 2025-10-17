@@ -15,5 +15,5 @@
       "outDir": "./dist",
       "rootDir": "./src"
     },
-    "exclude": ["frontend", "frontend-vue", "node_modules"]
+    "exclude": ["frontend", "frontend-vue", "node_modules", "scripts", "dist"]
   }

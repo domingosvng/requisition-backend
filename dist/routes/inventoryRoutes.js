@@ -17,12 +17,12 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 const itemRepository = data_source_1.AppDataSource.getRepository(ItemInventario_1.ItemInventario);
 const userRepository = data_source_1.AppDataSource.getRepository(User_1.User);
-// Get all inventory items (admin/manager only)
+// Get all inventory items (admin only)
 router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         // User info is now attached to req.user by middleware
         const user = req.user;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
             return res.status(403).json({ message: 'Only admins or technical admins can view inventory.' });
         }
         const items = yield itemRepository.find();
@@ -38,12 +38,15 @@ router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 
     try {
         const user = req.user;
         let { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
             return res.status(403).json({ message: 'Only admins or technical admins can create inventory items.' });
         }
-        // Normalize inputs
+        // Normalize inputs: categoria may be array from frontend, quantidade may be string
         if (Array.isArray(categoria)) {
             categoria = categoria.join(', ');
+        }
+        else if (typeof categoria !== 'string') {
+            categoria = String(categoria || '');
         }
         quantidade = Number(quantidade || 0);
         unidadeMedida = unidadeMedida || '';
@@ -65,7 +68,7 @@ router.put('/:id', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(voi
         const { id } = req.params;
         const user = req.user;
         const updateData = req.body;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
             return res.status(403).json({ message: 'Only admins or technical admins can edit inventory items.' });
         }
         const item = yield itemRepository.findOne({ where: { id: Number(id) } });
@@ -85,7 +88,7 @@ router.delete('/:id', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(
     try {
         const { id } = req.params;
         const user = req.user;
-        if (!user || (user.role !== 'admin' && user.role !== 'tec_admin')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
             return res.status(403).json({ message: 'Only admins or technical admins can delete inventory items.' });
         }
         const item = yield itemRepository.findOne({ where: { id: Number(id) } });

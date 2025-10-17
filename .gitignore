@@ -1,3 +1,5 @@
 node_modules
 dist
 scripts
+frontend-vue/node_modules
+frontend-vue/dist

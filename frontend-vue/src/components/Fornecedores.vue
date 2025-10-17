@@ -125,7 +125,13 @@ export default {
             const q = this.searchQuery.trim().toLowerCase();
             if (!q) { this.filtered = this.fornecedores.slice(); return; }
             this.filtered = this.fornecedores.filter(f => {
-                return (f.nome||'').toLowerCase().includes(q) || (f.servicosFornecidos||[]).some(s => s.toLowerCase().includes(q));
+                return (f.nome||'').toLowerCase().includes(q) 
+                    || (f.nif||'').toLowerCase().includes(q)
+                    || (f.contactoPrincipal||'').toLowerCase().includes(q)
+                    || (f.email||'').toLowerCase().includes(q)
+                    || (f.telefone||'').toLowerCase().includes(q)
+                    || (f.endereco||'').toLowerCase().includes(q)
+                    || (f.servicosFornecidos||[]).some(s => s.toLowerCase().includes(q));
             });
         }
     }

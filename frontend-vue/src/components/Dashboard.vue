@@ -96,7 +96,7 @@ import apiService from '../services/apiService';
 
 const requisicoes = ref([]);
 const loading = ref(true);
-const error = ref('');
+const serverError = ref('');
 
 const username = localStorage.getItem('username') || 'Usuário';
 const userRole = localStorage.getItem('userRole');
@@ -124,7 +124,7 @@ async function fetchRequisitions() {
     });
     requisicoes.value = response.data;
   } catch (err) {
-    error.value = err.response?.data?.message || 'Erro ao carregar requisições.';
+    serverError.value = err.response?.data?.message || 'Erro ao carregar requisições.';
   } finally {
     loading.value = false;
   }

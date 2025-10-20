@@ -1,0 +1,158 @@
+Reproduction Instructions — Requisition Backend
+
+This document describes how to reproduce the local project state and setup that exists in the current repository (requisition-backend). It includes environment setup, dependency installation, database setup, migrations, running dev servers (backend + frontend), test scripts, and GitHub publishing steps that were used during development.
+
+NOTE: This file is plain text saved with a .docx extension so it can be opened in Word; it is not a true OOXML package. If you need a native Word .docx, copy and paste the content into Word and save as a .docx.
+
+1) Requirements
+- Windows 10/11 or similar (PowerShell recommended)
+- Node.js 18+ (LTS recommended)
+- npm (comes with Node.js)
+- PostgreSQL (local or remote) with credentials
+- Git and access to the target GitHub repository
+- Optional: VS Code (recommended)
+
+2) Repository layout (relevant folders)
+- backend/  (main server code — run commands from this folder)
+  - src/ (TypeScript source)
+  - scripts/ (helper scripts: createAdmin.js, testCreateSupplier.js, testCreateInventory.js)
+  - frontend-vue/ (Vue 3 + Vite frontend)
+  - package.json, tsconfig.json
+
+3) Setup environment variables
+Create a `.env` file at `backend/.env` or set env vars in your shell with the values required by `src/data-source.ts` and `src/middleware/authMiddleware.ts`.
+Example `.env` (replace placeholders):
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASS=postgres
+DB_NAME=requisition_db
+JWT_SECRET=your_jwt_secret_here
+PORT_BACKEND=3001
+
+4) Install dependencies
+Open PowerShell and run (from repo root or backend folder):
+
+# backend
+cd C:\xampp\htdocs\backend
+npm install
+
+# frontend (Vue)
+cd frontend-vue
+npm install
+
+5) TypeScript build
+From `backend` folder run:
+
+npm run build
+
+This compiles TypeScript from `src/` to `dist/` and is used by some scripts.
+
+6) Database migrations
+The project avoids runtime `synchronize` for production. There are migration SQL files under `migrations/`.
+Apply them to your Postgres DB in order. Example using psql:
+
+psql -h $env:DB_HOST -p $env:DB_PORT -U $env:DB_USER -d $env:DB_NAME -f migrations/0001_add_password_hash.sql
+
+(Repeat for other migration files if present.)
+
+7) Create initial admin (optional)
+There is a script to create an admin user with a hashed password. After database migrations are applied, run:
+
+cd C:\xampp\htdocs\backend
+node scripts/createAdmin.js
+
+This will create/update an `admin` user and set a hashed password.
+
+8) Running dev servers (two terminals)
+Open two PowerShell terminals (split view in terminal or two separate windows).
+
+Terminal A — Backend (dev):
+
+cd C:\xampp\htdocs\backend
+# start the backend with ts-node-dev so changes reload automatically
+npm run dev
+
+This runs the TypeScript dev server (ts-node-dev). By default it listens on PORT_BACKEND (3001) if configured.
+
+Terminal B — Frontend (Vue dev server):
+
+cd C:\xampp\htdocs\backend\frontend-vue
+npm run dev
+
+Vite will start and display the local URL (usually http://localhost:5173/).
+
+9) PowerShell token file encoding note
+When using PowerShell redirection to save tokens (or outputs) to files, PowerShell may write UTF-16LE files by default. Use the following to write UTF-8:
+
+# Save output as UTF-8
+YourCommand | Out-File -FilePath token.txt -Encoding utf8
+# or
+Set-Content -Path token.txt -Value (YourCommandOutput) -Encoding utf8
+
+10) Quick smoke tests
+There are test scripts under `scripts/`. Ensure backend is running (Terminal A) then run from `backend` folder:
+
+# Test create supplier (example)
+node scripts/testCreateSupplier.js
+
+# Test create inventory
+node scripts/testCreateInventory.js
+
+These use the API endpoints at the backend dev server and will print responses or errors.
+
+11) Push this repo to GitHub and set as main (what was done locally)
+If you have an existing remote, ensure you have push access. Steps that were executed locally to make this branch the remote `main`:
+
+# ensure you are on the working branch
+git checkout copilot/vscode1760708251692
+
+# create a remote backup of the current main (safe step)
+git push origin copilot/vscode1760708251692:refs/heads/backup-before-main-update
+
+# force-update remote main to match this branch
+git push origin copilot/vscode1760708251692:refs/heads/main --force
+
+CAUTION: Force-pushing `main` will rewrite remote `main`. Team members should reset their local `main` to the new remote state:
+
+git fetch origin
+git checkout main
+git reset --hard origin/main
+
+12) How to reproduce a fresh local copy (another PC)
+
+# clone the repo
+git clone https://github.com/domingosvng/requisition-backend.git
+cd requisition-backend
+
+# backend setup
+cd backend
+npm install
+# create .env with DB/JWT settings
+npm run build
+# apply migrations
+psql -h localhost -U postgres -d requisition_db -f migrations/0001_add_password_hash.sql
+# run createAdmin if needed
+node scripts/createAdmin.js
+# start servers (two terminals)
+npm run dev
+
+# frontend
+cd frontend-vue
+npm install
+npm run dev
+
+13) Notes, caveats, and recommended next steps
+- Password hashing: project uses a backward-compatible approach (nullable password_hash column) and migrates legacy plain-password users on first successful login.
+- Database `synchronize` is disabled in runtime — use migrations to modify schema safely.
+- Validate your env vars carefully; dev and prod should use different secrets and DB instances.
+- Consider adding CI to run lint/build/tests on PRs.
+
+14) Contact
+If something doesn't start, capture the server logs from both terminals and share them. Common issues:
+- Port collisions: ensure no other service uses ports 3001 or 5173.
+- Database connection errors: verify host/port/user/password/database.
+- PowerShell encoding: use Out-File/Set-Content with -Encoding utf8 to avoid UTF-16 files.
+
+--- End of document ---

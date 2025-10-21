@@ -3,7 +3,7 @@
         <h2>Inventário Actual</h2>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
             <button v-if="canManage" class="btn btn-primary" @click="isEditing = false; resetForm(); showForm=true">Adicionar Item</button>
-            <input v-model="searchQuery" placeholder="Pesquisar inventário..." class="form-control" style="max-width:320px;" @input="filterInventario" />
+            <input v-model="searchQuery" placeholder="Pesquisar inventário..." class="form-control" style="max-width:320px;" />
         </div>
         <table class="table table-dark table-striped table-bordered table-hover">
             <thead>
@@ -86,6 +86,9 @@ export default {
         }
     },
     created() { this.fetchInventario(); },
+    watch: {
+        searchQuery() { this.filterInventario(); }
+    },
     methods: {
         async fetchInventario() {
             const token = localStorage.getItem('userToken');

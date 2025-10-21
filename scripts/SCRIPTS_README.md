@@ -29,3 +29,9 @@ node scripts/genToken.js | Set-Content -Encoding UTF8 scripts\last_test_token.tx
 
 Admin script notes
 - `scripts/createAdmin.js` and `scripts/createAdmin.ts` will now create an admin user with a default password ("admin" / "testadmin") and store a bcrypt hash in the database. Change these passwords after first login.
+
+scripts/updateInventoryFields.js
+- Updates existing inventory items with missing fields (categoria, unidadeMedida, localizacao, etc.)
+- Fills empty or null values with sensible defaults
+- Run: `node scripts/updateInventoryFields.js`
+- See `scripts/UPDATE_INVENTORY_FIELDS_README.md` for detailed usage

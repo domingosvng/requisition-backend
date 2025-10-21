@@ -50,12 +50,23 @@
             <div v-if="showForm" class="card mt-4 p-3" style="background:#fff;color:#333;">
                 <h3 v-if="isEditing">Editar Item</h3>
                 <h3 v-else>Adicionar Item</h3>
+                <div v-if="serverError" class="alert alert-danger">{{ serverError }}</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                    <input v-model="form.nome" placeholder="Nome" class="form-control" />
-                    <input v-model.number="form.quantidade" placeholder="Quantidade" class="form-control" type="number" />
-                    <input v-model="form.descricao" placeholder="Descrição" class="form-control" />
-                    <input v-model="form.categoriaText" placeholder="Categorias (vírgula)" class="form-control" @change="form.categoria = form.categoriaText.split(',').map(s=>s.trim())" />
-                </div>
+                            <input v-model="form.nome" placeholder="Nome" class="form-control" />
+                            <input v-model.number="form.quantidade" placeholder="Quantidade" class="form-control" type="number" />
+                            <input v-model="form.descricao" placeholder="Descrição" class="form-control" />
+                            <input v-model="form.categoriaText" placeholder="Categorias (vírgula)" class="form-control" @change="form.categoria = form.categoriaText.split(',').map(s=>s.trim())" />
+                            <input v-model="form.unidadeMedida" placeholder="Unidade de Medida" class="form-control" />
+                            <input v-model="form.localizacao" placeholder="Localização" class="form-control" />
+                            <input v-model="form.dataEntrada" placeholder="Data Entrada (YYYY-MM-DD)" class="form-control" />
+                            <input v-model="form.dataUltimaSaida" placeholder="Última Saída (YYYY-MM-DD)" class="form-control" />
+                            <input v-model="form.fornecedor" placeholder="Fornecedor" class="form-control" />
+                            <input v-model.number="form.valorUnitario" placeholder="Valor Unitário" class="form-control" type="number" step="0.01" />
+                            <select v-model="form.status" class="form-control">
+                                <option value="ATIVO">ATIVO</option>
+                                <option value="INATIVO">INATIVO</option>
+                            </select>
+                        </div>
                 <div style="margin-top:8px;">
                     <button class="btn btn-success" @click="saveItem">Salvar</button>
                     <button class="btn btn-secondary" @click="resetForm">Cancelar</button>
@@ -73,9 +84,10 @@ export default {
             inventario: [],
             filtered: [],
             searchQuery: '',
-            form: { id: null, nome: '', quantidade: 0, descricao: '', categoria: [] },
+            form: { id: null, nome: '', quantidade: 0, descricao: '', categoria: [], categoriaText: '', unidadeMedida: '', localizacao: '', dataEntrada: '', dataUltimaSaida: '', fornecedor: '', valorUnitario: null, status: 'ATIVO' },
             isEditing: false,
             showForm: false,
+            serverError: '',
             categoriaOptions: ['Hardware','Software','Consumíveis','Serviços']
         };
     },
@@ -86,6 +98,7 @@ export default {
         }
     },
     created() { this.fetchInventario(); },
+    // Removed duplicate data() declarations
     watch: {
         searchQuery() { this.filterInventario(); }
     },
@@ -96,16 +109,27 @@ export default {
                 const response = await axios.get(API_URL, { headers: { Authorization: `Bearer ${token}` } });
                 this.inventario = response.data;
                 this.filtered = this.inventario.slice();
-            } catch (error) { console.error('Erro ao carregar inventário.', error); }
+            } catch (error) { 
+                console.error('Erro ao carregar inventário.', error);
+                this.serverError = error.response?.data?.message || error.message || 'Erro ao carregar inventário.';
+            }
         },
-    editItem(item) { this.form = { ...item, categoriaText: (item.categoria||[]).join(', ') }; this.isEditing = true; this.showForm = true; },
+    editItem(item) { this.form = { ...item, categoriaText: (item.categoria||'').toString() }; this.isEditing = true; this.showForm = true; },
         async saveItem() {
             const token = localStorage.getItem('userToken');
             try {
+                // Normalize payload
+                const payload = { ...this.form };
+                if (payload.categoriaText) {
+                    payload.categoria = payload.categoriaText.split(',').map(s=>s.trim()).filter(Boolean);
+                }
+                payload.quantidade = Number(payload.quantidade || 0);
+                if (payload.valorUnitario !== null && payload.valorUnitario !== undefined) payload.valorUnitario = Number(payload.valorUnitario);
+
                 if (this.isEditing && this.form.id) {
-                    await axios.put(`${API_URL}/${this.form.id}`, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                    await axios.put(`${API_URL}/${this.form.id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
                 } else {
-                    await axios.post(API_URL, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                    await axios.post(API_URL, payload, { headers: { Authorization: `Bearer ${token}` } });
                 }
                 this.resetForm();
                 this.fetchInventario();
@@ -127,7 +151,7 @@ export default {
                 alert(msg);
             }
         },
-        resetForm() { this.form = { id: null, nome: '', quantidade: 0, descricao: '', categoria: [] }; this.isEditing = false; this.showForm = false; },
+        resetForm() { this.form = { id: null, nome: '', quantidade: 0, descricao: '', categoria: [], categoriaText: '', unidadeMedida: '', localizacao: '', dataEntrada: '', dataUltimaSaida: '', fornecedor: '', valorUnitario: null, status: 'ATIVO' }; this.isEditing = false; this.showForm = false; },
         filterInventario() {
             const q = this.searchQuery.trim().toLowerCase();
             if (!q) { this.filtered = this.inventario.slice(); return; }

@@ -104,11 +104,22 @@ export default {
     },
     methods: {
         async fetchInventario() {
-            const token = localStorage.getItem('userToken');
+            let token = localStorage.getItem('userToken');
+            if (!token && process.env.NODE_ENV !== 'production') {
+                // ask backend for a dev token (only in dev)
+                try {
+                    const tokResp = await axios.get(API_URL + '/dev-token');
+                    token = tokResp.data?.token;
+                    if (token) localStorage.setItem('userToken', token);
+                } catch (e) {
+                    console.warn('Could not fetch dev token', e.message || e);
+                }
+            }
             try {
-                const response = await axios.get(API_URL, { headers: { Authorization: `Bearer ${token}` } });
+                const response = await axios.get(API_URL, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
                 this.inventario = response.data;
                 this.filtered = this.inventario.slice();
+                this.serverError = '';
             } catch (error) { 
                 console.error('Erro ao carregar inventário.', error);
                 this.serverError = error.response?.data?.message || error.message || 'Erro ao carregar inventário.';

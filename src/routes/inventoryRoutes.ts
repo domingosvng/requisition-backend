@@ -9,6 +9,31 @@ const router = Router();
 const itemRepository = AppDataSource.getRepository(ItemInventario);
 const userRepository = AppDataSource.getRepository(User);
 
+// Dev-only public read route: useful for local development where frontend may not have a token.
+// This route is intentionally not protected and should NOT be enabled in production.
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/public', async (req, res) => {
+    try {
+      const items = await itemRepository.find();
+      res.status(200).json(items);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: 'Erro interno ao obter inventário (public).', error: errorMsg });
+    }
+  });
+  // Dev helper: return a short-lived admin token to the frontend for local development
+  router.get('/dev-token', async (req, res) => {
+    try {
+      const secret = process.env.JWT_SECRET || 'yourSuperSecretKey';
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ id: 1, username: 'dev-autotoken', role: 'ADMIN' }, secret, { expiresIn: '1h' });
+      return res.json({ token });
+    } catch (err) {
+      return res.status(500).json({ message: 'Failed to create dev token.' });
+    }
+  });
+}
+
 // Get all inventory items (admin only)
 router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {

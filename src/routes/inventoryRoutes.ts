@@ -32,6 +32,19 @@ if (process.env.NODE_ENV !== 'production') {
       return res.status(500).json({ message: 'Failed to create dev token.' });
     }
   });
+  // Dev helper: serve a small HTML page that writes a fresh dev token into localStorage and redirects back.
+  router.get('/set-dev-token', async (req, res) => {
+    try {
+      const secret = process.env.JWT_SECRET || 'yourSuperSecretKey';
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ id: 1, username: 'dev-autotoken', role: 'ADMIN' }, secret, { expiresIn: '1h' });
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Set Dev Token</title></head><body><script>localStorage.setItem('userToken', '${token}'); localStorage.setItem('userRole','ADMIN'); setTimeout(()=>{window.location.href='/'},300);</script><p>Setting dev token and redirecting...</p></body></html>`;
+      res.setHeader('Content-Type', 'text/html');
+      return res.send(html);
+    } catch (err) {
+      return res.status(500).send('Failed to set dev token');
+    }
+  });
 }
 
 // Get all inventory items (admin only)

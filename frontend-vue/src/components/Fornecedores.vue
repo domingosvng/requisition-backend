@@ -80,6 +80,16 @@ export default {
     },
     created() { this.fetchFornecedores(); },
     methods: {
+        formatError(err) {
+            if (!err) return 'Erro desconhecido';
+            if (err.response && err.response.data) {
+                const d = err.response.data;
+                if (typeof d === 'string') return d;
+                if (d.message) return d.message;
+                try { return JSON.stringify(d); } catch(e) { return String(d); }
+            }
+            return err.message || String(err);
+        },
         async fetchFornecedores() {
             const token = localStorage.getItem('userToken');
             try {
@@ -111,18 +121,18 @@ export default {
                 this.form.servicosFornecidos = (this.form.servicosFornecidos || '').split(',').map(s => s.trim()).filter(Boolean);
             }
             try {
-                if (this.isEditing && this.form.id) {
-                    await axios.put(`${API_URL}/${this.form.id}`, this.form, { headers: { Authorization: `Bearer ${token}` } });
-                } else {
-                    await axios.post(API_URL, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                    if (this.isEditing && this.form.id) {
+                        await axios.put(`${API_URL}/${this.form.id}`, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                    } else {
+                        await axios.post(API_URL, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                    }
+                    this.resetForm();
+                    this.fetchFornecedores();
+                } catch (err) { 
+                    console.error('Erro ao salvar fornecedor', err);
+                    const msg = formatError(err);
+                    alert(msg);
                 }
-                this.resetForm();
-                this.fetchFornecedores();
-            } catch (err) { 
-                console.error('Erro ao salvar fornecedor', err);
-                const msg = err.response?.data?.message || err.response?.data || err.message || 'Erro ao salvar fornecedor';
-                alert(msg);
-            }
         },
         async deleteFornecedor(id) { 
             if (!confirm('Confirmar eliminação?')) return;

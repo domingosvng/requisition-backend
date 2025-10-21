@@ -5,6 +5,14 @@
             <button v-if="canManage" class="btn btn-primary" @click="showAddForm" data-test="add-item-btn">Adicionar Item</button>
             <input v-model="searchQuery" placeholder="Pesquisar inventário..." class="form-control" style="max-width:320px;" />
         </div>
+        <!-- Debug panel (dev only) -->
+        <div v-if="process.env.NODE_ENV !== 'production'" style="margin-bottom:12px; font-size:0.9rem; color:#666;">
+            <strong>Debug:</strong>
+            <div>userToken: {{ !!localStorage.getItem('userToken') }}</div>
+            <div>userRole: {{ localStorage.getItem('userRole') || '-' }}</div>
+            <div>showForm: {{ showForm }}</div>
+            <div v-if="serverError" style="color:#a00">serverError: {{ serverError }}</div>
+        </div>
         <table class="table table-dark table-striped table-bordered table-hover">
             <thead>
                 <tr>
@@ -76,8 +84,9 @@
 </template>
 
 <script>
-import axios from 'axios';
-const API_URL = 'http://localhost:3001/api/inventario';
+import apiService from '../services/apiService';
+// Keep a full URL constant for any dev-only endpoints
+const API_URL = '/inventario';
 export default {
     data() {
         return {
@@ -103,29 +112,109 @@ export default {
         searchQuery() { this.filterInventario(); }
     },
     methods: {
+        formatError(err) {
+            if (!err) return 'Erro desconhecido';
+            if (err.response && err.response.data) {
+                const d = err.response.data;
+                if (typeof d === 'string') return d;
+                if (d.message) return d.message;
+                try { return JSON.stringify(d); } catch(e) { return String(d); }
+            }
+            return err.message || String(err);
+        },
+        normalizeItem(item) {
+            // Ensure fields exist and have safe types to avoid runtime crashes
+            const categoria = Array.isArray(item.categoria)
+                ? item.categoria
+                : (function () {
+                    if (!item.categoria) return [];
+                    try {
+                        const p = JSON.parse(item.categoria);
+                        return Array.isArray(p) ? p : [String(p)];
+                    } catch (e) {
+                        return String(item.categoria).split(',').map(s => s.trim()).filter(Boolean);
+                    }
+                })();
+
+            return {
+                id: item.id,
+                nome: item.nome || '',
+                descricao: item.descricao || '',
+                categoria,
+                quantidade: item.quantidade != null ? Number(item.quantidade) : 0,
+                unidadeMedida: item.unidadeMedida || '',
+                localizacao: item.localizacao || 'NA',
+                dataEntrada: item.dataEntrada || null,
+                dataUltimaSaida: item.dataUltimaSaida || null,
+                fornecedor: item.fornecedor || '',
+                valorUnitario: item.valorUnitario != null ? Number(item.valorUnitario) : 0,
+                status: item.status || 'ATIVO'
+            };
+        },
         async fetchInventario() {
-            let token = localStorage.getItem('userToken');
-            if (!token && process.env.NODE_ENV !== 'production') {
-                // ask backend for a dev token (only in dev)
+            // In development, apiService will send token automatically. We still try a dev-token endpoint
+            if (!localStorage.getItem('userToken') && process.env.NODE_ENV !== 'production') {
                 try {
-                    const tokResp = await axios.get(API_URL + '/dev-token');
-                    token = tokResp.data?.token;
+                    const tokResp = await apiService.get(API_URL + '/dev-token');
+                    const token = tokResp.data?.token;
                     if (token) localStorage.setItem('userToken', token);
                 } catch (e) {
                     console.warn('Could not fetch dev token', e.message || e);
                 }
             }
             try {
-                const response = await axios.get(API_URL, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-                this.inventario = response.data;
+                const response = await apiService.get(API_URL);
+                const raw = Array.isArray(response.data) ? response.data : [];
+                this.inventario = raw.map(r => this.normalizeItem(r));
                 this.filtered = this.inventario.slice();
                 this.serverError = '';
-            } catch (error) { 
-                console.error('Erro ao carregar inventário.', error);
+            } catch (error) {
+                // If unauthorized/forbidden, try to obtain a dev token and retry (dev only)
+                const status = error.response?.status;
+                console.warn('Erro ao carregar inventário.', status || error.message || error);
+                if ((status === 401 || status === 403) && process.env.NODE_ENV !== 'production') {
+                    try {
+                        const tokResp = await apiService.get(API_URL + '/dev-token');
+                        const token = tokResp.data?.token;
+                        if (token) {
+                            localStorage.setItem('userToken', token);
+                            // retry
+                            const retry = await apiService.get(API_URL);
+                            const raw2 = Array.isArray(retry.data) ? retry.data : [];
+                            this.inventario = raw2.map(r => this.normalizeItem(r));
+                            this.filtered = this.inventario.slice();
+                            this.serverError = '';
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('Dev token request failed', e.message || e);
+                    }
+                }
+                // If we reach here, try public read endpoint (dev-only)
+                if (process.env.NODE_ENV !== 'production') {
+                    try {
+                        const pub = await apiService.get(API_URL + '/public');
+                        const raw3 = Array.isArray(pub.data) ? pub.data : [];
+                        this.inventario = raw3.map(r => this.normalizeItem(r));
+                        this.filtered = this.inventario.slice();
+                        this.serverError = '';
+                        return;
+                    } catch (e) {
+                        console.warn('Public inventory fallback failed', e.message || e);
+                    }
+                }
                 this.serverError = error.response?.data?.message || error.message || 'Erro ao carregar inventário.';
             }
         },
-    editItem(item) { this.form = { ...item, categoriaText: (item.categoria||'').toString() }; this.isEditing = true; this.showForm = true; },
+    editItem(item) {
+            const norm = this.normalizeItem(item);
+            let categoriaText = '';
+            if (Array.isArray(norm.categoria)) categoriaText = norm.categoria.join(', ');
+            else if (norm.categoria) categoriaText = String(norm.categoria);
+            this.form = { ...norm, categoriaText };
+            this.isEditing = true;
+            this.showForm = true;
+        },
         async saveItem() {
             const token = localStorage.getItem('userToken');
             try {
@@ -138,15 +227,15 @@ export default {
                 if (payload.valorUnitario !== null && payload.valorUnitario !== undefined) payload.valorUnitario = Number(payload.valorUnitario);
 
                 if (this.isEditing && this.form.id) {
-                    await axios.put(`${API_URL}/${this.form.id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+                    await apiService.put(`${API_URL}/${this.form.id}`, payload);
                 } else {
-                    await axios.post(API_URL, payload, { headers: { Authorization: `Bearer ${token}` } });
+                    await apiService.post(API_URL, payload);
                 }
                 this.resetForm();
                 this.fetchInventario();
             } catch (err) {
                 console.error('Erro ao salvar item', err);
-                const msg = err.response?.data?.message || err.response?.data || err.message || 'Erro ao salvar item';
+                const msg = this.formatError(err);
                 alert(msg);
             }
         },
@@ -154,11 +243,11 @@ export default {
             if (!confirm('Confirmar eliminação?')) return;
             const token = localStorage.getItem('userToken');
             try {
-                await axios.delete(`${API_URL}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                await apiService.delete(`${API_URL}/${id}`);
                 this.fetchInventario();
             } catch (err) {
                 console.error('Erro ao apagar item', err);
-                const msg = err.response?.data?.message || err.response?.data || err.message || 'Erro ao apagar item';
+                const msg = this.formatError(err);
                 alert(msg);
             }
         },

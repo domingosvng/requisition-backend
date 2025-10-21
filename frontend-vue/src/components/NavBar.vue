@@ -13,16 +13,14 @@
       </div>
     </div>
     <div class="user-info">
-      <div class="profile"> 
-        <span class="avatar" :aria-label="`Perfil de ${username}`" :title="username" @click="toggleMenu" tabindex="0" role="button">
+      <div class="profile">
+        <span class="avatar" :aria-label="`Conta de ${username}`" :title="username" @click="toggleMenu" tabindex="0" role="button">
           <img v-if="avatarUrl" :src="avatarUrl" alt="Avatar" class="avatar-img" />
           <template v-else>
             <div class="avatar-initials" aria-hidden="true">{{ initials }}</div>
           </template>
         </span>
-        <span class="user-greeting">Olá, {{ username }} ({{ roleDisplay }})</span>
         <div v-if="menuOpen" class="profile-menu" role="menu" @click.stop>
-          <button class="menu-item" role="menuitem" @click="() => {}">Perfil</button>
           <button class="menu-item" role="menuitem" @click="onLogout">Sair</button>
         </div>
       </div>
@@ -36,14 +34,6 @@ import { useRouter } from 'vue-router';
 const { logout } = defineProps({ logout: Function });
 const username = localStorage.getItem('username') || 'Usuário';
 const userRole = localStorage.getItem('userRole');
-const avatarUrl = localStorage.getItem('avatarUrl') || null; // optional image URL
-const initials = computed(() => {
-  const name = (username || '').trim();
-  if (!name) return '';
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-});
 // Only true admins and technical admins should see inventory/fornecedores links
 const isAdmin = computed(() => userRole === 'ADMIN_TEC' || userRole === 'ADMIN');
 const roleDisplay = computed(() => {
@@ -59,6 +49,14 @@ const router = useRouter();
 const loading = ref(false);
 const menuOpen = ref(false);
 function toggleMenu() { menuOpen.value = !menuOpen.value; }
+const avatarUrl = localStorage.getItem('avatarUrl') || null; // optional image URL
+const initials = computed(() => {
+  const name = (username || '').trim();
+  if (!name) return '';
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+});
 async function onLogout() {
   try {
     loading.value = true;

@@ -1,23 +1,46 @@
 <template>
     <div class="container mt-4">
-        <h2>Inventário Atual</h2>
+        <h2>Inventário Actual</h2>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
             <button v-if="canManage" class="btn btn-primary" @click="isEditing = false; resetForm(); showForm=true">Adicionar Item</button>
             <input v-model="searchQuery" placeholder="Pesquisar inventário..." class="form-control" style="max-width:320px;" @input="filterInventario" />
         </div>
         <table class="table table-dark table-striped table-bordered table-hover">
             <thead>
-                <tr><th>ID</th><th>Nome</th><th>Qtd</th><th>Ações</th></tr>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th>Qtd</th>
+                    <th>Unid.</th>
+                    <th>Localização</th>
+                    <th>Data Entrada</th>
+                    <th>Última Saída</th>
+                    <th>Fornecedor</th>
+                    <th>Valor Unit.</th>
+                    <th>Estado</th>
+                    <th>Ações</th>
+                </tr>
             </thead>
             <tbody>
                 <tr v-for="item in filtered" :key="item.id">
                     <td>{{ item.id }}</td>
                     <td>{{ item.nome }}</td>
+                    <td style="max-width:240px; white-space:normal;">{{ item.descricao || '-' }}</td>
+                    <td>{{ (item.categoria || []).join(', ') }}</td>
                     <td>{{ item.quantidade }}</td>
+                    <td>{{ item.unidadeMedida || '-' }}</td>
+                    <td>{{ item.localizacao || '-' }}</td>
+                    <td>{{ formatDate(item.dataEntrada) }}</td>
+                    <td>{{ formatDate(item.dataUltimaSaida) }}</td>
+                    <td>{{ item.fornecedor?.nome || item.fornecedor || '-' }}</td>
+                    <td>{{ item.valorUnitario != null ? item.valorUnitario : '-' }}</td>
+                    <td>{{ item.status || '-' }}</td>
                     <td>
-                            <button v-if="canManage" @click="editItem(item)" class="btn btn-sm btn-warning me-2">Editar</button>
-                            <button v-if="canManage" @click="deleteItem(item.id)" class="btn btn-sm btn-danger">Eliminar</button>
-                        </td>
+                        <button v-if="canManage" @click="editItem(item)" class="btn btn-sm btn-warning me-2">Editar</button>
+                        <button v-if="canManage" @click="deleteItem(item.id)" class="btn btn-sm btn-danger">Eliminar</button>
+                    </td>
                 </tr>
             </tbody>
         </table>
@@ -106,6 +129,10 @@ export default {
             const q = this.searchQuery.trim().toLowerCase();
             if (!q) { this.filtered = this.inventario.slice(); return; }
             this.filtered = this.inventario.filter(i => (i.nome||'').toLowerCase().includes(q) || (i.descricao||'').toLowerCase().includes(q) || (i.categoria||[]).some(c=>c.toLowerCase().includes(q)));
+        }
+        ,formatDate(dateStr) {
+            if (!dateStr) return '-';
+            try { const d = new Date(dateStr); return d.toLocaleDateString(); } catch (e) { return dateStr; }
         }
     }
 }

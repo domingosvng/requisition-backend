@@ -72,6 +72,7 @@ export default {
             filtered: [],
             searchQuery: '',
             form: { id: null, nome: '', nif: '', contactoPrincipal: '', email: '', telefone: '', endereco: '', servicosFornecidos: [], servicosText: '' },
+            formErrors: {},
             isEditing: false,
             showForm: false,
             serviceOptions: ['Materiais', 'Serviços', 'Transporte', 'Manutenção']
@@ -88,7 +89,22 @@ export default {
             } catch (error) { console.error('Erro ao carregar fornecedores.', error); }
         },
     editFornecedor(fornecedor) { this.form = { ...fornecedor, servicosFornecidos: fornecedor.servicosFornecidos || [], servicosText: (fornecedor.servicosFornecidos||[]).join(', ') }; this.isEditing = true; this.showForm = true; },
+        validateForm() {
+            const errors = {};
+            if (!this.form.nome || this.form.nome.trim().length < 3) errors.nome = 'Nome precisa ter ao menos 3 caracteres';
+            if (this.form.nif && !/^\d{9}$/.test(this.form.nif)) errors.nif = 'NIF deve ter 9 dígitos';
+            if (this.form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.form.email)) errors.email = 'Email inválido';
+            if (this.form.telefone && this.form.telefone.length > 20) errors.telefone = 'Telefone muito longo';
+            return errors;
+        },
+
         async saveFornecedor() {
+            this.formErrors = this.validateForm();
+            if (Object.keys(this.formErrors).length > 0) {
+                // focus first error or show alert
+                alert('Corrija os erros no formulário antes de salvar.');
+                return;
+            }
             const token = localStorage.getItem('userToken');
             // Ensure services array is set from text before sending
             if (typeof this.form.servicosFornecidos === 'string') {

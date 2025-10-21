@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
+import { body, validationResult } from 'express-validator';
 import { AppDataSource } from '../data-source';
 import { ItemInventario } from '../entity/ItemInventario';
 import { User } from '../entity/User';
@@ -25,14 +26,29 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
 });
 
 // Create new inventory item (admin only)
-router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+router.post('/', authenticateJWT,
+  // validation middleware
+  [
+    body('nome').trim().notEmpty().withMessage('Nome é obrigatório').isLength({ max: 200 }).withMessage('Nome muito longo'),
+    body('descricao').optional().isLength({ max: 1000 }).withMessage('Descricao muito longa'),
+    body('categoria').optional().isString().withMessage('Categoria inválida'),
+    body('quantidade').optional().isInt({ min: 0 }).withMessage('Quantidade deve ser inteiro >= 0'),
+    body('unidadeMedida').optional().isLength({ max: 50 }).withMessage('Unidade muito longa'),
+    body('localizacao').optional().isLength({ max: 200 }).withMessage('Localizacao muito longa'),
+    body('status').optional().isIn(['ATIVO', 'INATIVO']).withMessage('Status inválido'),
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array().map((e: any) => ({ field: e.param, message: e.msg })) });
+    }
   try {
     const user = req.user;
     let { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;
     if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can create inventory items.' });
     }
-    // Normalize inputs: categoria may be array from frontend, quantidade may be string
+  // Normalize inputs: categoria may be array from frontend, quantidade may be string
     if (Array.isArray(categoria)) {
       categoria = categoria.join(', ');
     } else if (typeof categoria !== 'string') {

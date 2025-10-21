@@ -13,19 +13,37 @@
       </div>
     </div>
     <div class="user-info">
-      <span class="user-greeting">
-        Olá, {{ username }} ({{ roleDisplay }})
-      </span>
-      <button @click="logout" class="logout-btn">Sair</button>
+      <div class="profile"> 
+        <span class="avatar" :aria-label="`Perfil de ${username}`" :title="username" @click="toggleMenu" tabindex="0" role="button">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="Avatar" class="avatar-img" />
+          <template v-else>
+            <div class="avatar-initials" aria-hidden="true">{{ initials }}</div>
+          </template>
+        </span>
+        <span class="user-greeting">Olá, {{ username }} ({{ roleDisplay }})</span>
+        <div v-if="menuOpen" class="profile-menu" role="menu" @click.stop>
+          <button class="menu-item" role="menuitem" @click="() => {}">Perfil</button>
+          <button class="menu-item" role="menuitem" @click="onLogout">Sair</button>
+        </div>
+      </div>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 const { logout } = defineProps({ logout: Function });
 const username = localStorage.getItem('username') || 'Usuário';
 const userRole = localStorage.getItem('userRole');
+const avatarUrl = localStorage.getItem('avatarUrl') || null; // optional image URL
+const initials = computed(() => {
+  const name = (username || '').trim();
+  if (!name) return '';
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+});
 // Only true admins and technical admins should see inventory/fornecedores links
 const isAdmin = computed(() => userRole === 'ADMIN_TEC' || userRole === 'ADMIN');
 const roleDisplay = computed(() => {
@@ -36,6 +54,30 @@ const roleDisplay = computed(() => {
   };
   return roles[userRole] || userRole;
 });
+const router = useRouter();
+
+const loading = ref(false);
+const menuOpen = ref(false);
+function toggleMenu() { menuOpen.value = !menuOpen.value; }
+async function onLogout() {
+  try {
+    loading.value = true;
+    // call the provided logout prop (may be sync or async)
+    if (typeof logout === 'function') {
+      const maybePromise = logout();
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        await maybePromise;
+      }
+    } else {
+      // fallback: clear local storage tokens if no logout handler provided
+      try { localStorage.removeItem('userToken'); localStorage.removeItem('username'); localStorage.removeItem('userRole'); } catch (e) { /* ignore */ }
+    }
+    // after logout, navigate to login route
+    try { router.push({ path: '/login' }); } catch(e) { /* ignore if router not ready */ }
+  } finally {
+    loading.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -94,4 +136,41 @@ const roleDisplay = computed(() => {
 .logout-btn:hover {
   background: #b71c1c;
 }
+.profile { display:flex; align-items:center; gap:8px; }
+.avatar { display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,0.06); }
+.avatar-img { width:32px; height:32px; border-radius:50%; object-fit:cover; }
+.avatar-initials { width:32px; height:32px; border-radius:50%; background:#c8e6c9; display:flex; align-items:center; justify-content:center; color:#2e7d32; font-weight:700; }
+.user-icon { display:block; }
+.loading-content { display:flex; align-items:center; gap:8px; }
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.logout-btn:focus, .avatar:focus { outline: 3px solid rgba(62, 126, 47, 0.25); outline-offset: 2px; }
+
+/* Profile dropdown menu styles */
+.profile-menu {
+  position: absolute;
+  right: 20px;
+  top: 60px;
+  background: #fff;
+  border: 1px solid #e1bee7;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  border-radius: 6px;
+  padding: 6px 8px;
+  z-index: 1200;
+  min-width: 140px;
+}
+.menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  color: #3A004D;
+  cursor: pointer;
+}
+.menu-item:hover {
+  background: #f3e6fb;
+}
+.avatar { position: relative; cursor: pointer; }
 </style>

@@ -1,6 +1,10 @@
 <template>
   <div class="dashboard-container">
     <h2>Dashboard</h2>
+    <div class="status-legend" title="Legenda: aprovação pelo gestor é diferente da aprovação final pelo administrador">
+      <span class="legend-item"><span class="legend-swatch gest"></span> Aprovação (Gestor)</span>
+      <span class="legend-item"><span class="legend-swatch admin"></span> Aprovação (Admin)</span>
+    </div>
     <div class="user-info-panel">
       <span class="user-info-text">
         Usuário: <strong>{{ username }}</strong> | Papel: <strong>{{ roleDisplay }}</strong>
@@ -187,10 +191,10 @@ export default {
     },
     statusText(req) {
       // Admin-approved should display 'APROVADA' (all green)
-      if (req.status === 'APROVADA') return 'APROVADA';
-      // Manager-approved labels
-      if (req.status === 'APROVADA_GERENCIA') return 'APROVADA - GEST.';
-      if (req.status === 'AGUARDANDO_APROV_FINAL') return 'APROVADA - GEST.';
+    if (req.status === 'APROVADA') return 'APROVADA';
+    // Manager-approved labels
+    if (req.status === 'APROVADA_GERENCIA') return 'Aprovada-Gestor';
+    if (req.status === 'AGUARDANDO_APROV_FINAL') return 'Aprovada-Gestor';
       if (req.status === 'PENDENTE') return 'PENDENTE';
       if (req.status === 'REJEITADA') return 'REJEITADA';
       return req.status;
@@ -214,6 +218,18 @@ body {
   color: #3A004D;
   margin: 0 0 12px 0;
 }
+.status-legend {
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 0.95em;
+  color: #3A004D;
+}
+.legend-item { display:flex; align-items:center; gap:8px; }
+.legend-swatch { width:18px; height:12px; border-radius:4px; display:inline-block; border:1px solid #dcdcdc }
+.legend-swatch.gest { background: linear-gradient(90deg, #81c784 0%, #66bb6a 100%); }
+.legend-swatch.admin { background: #2e7d32; }
 .user-info-text {
   color: #3A004D;
   font-size: 1.05em;
@@ -239,11 +255,8 @@ td {
   color: #3A004D;
 }
 .dashboard-table tr.active-row {
-  border-left: 4px solid #CC0000;
-}
-.dashboard-table .status-aprovada {
-  color: #CC0000;
-  font-weight: bold;
+  /* visually mark approved rows with a green accent */
+  border-left: 4px solid #2e7d32; /* admin green */
 }
 .dashboard-table .item-table {
   background: #ede7f6;
@@ -345,15 +358,15 @@ td {
   font-size: 0.95em;
 }
 .status-aprovada-gest {
-  /* Green -> Yellow gradient for manager-approved */
-  background: linear-gradient(90deg, #1fa65a 0%, #f6c23e 100%);
+  /* Manager-approved: lighter green gradient */
+  background: linear-gradient(90deg, #81c784 0%, #66bb6a 100%);
   padding: 10px 24px;
   border-radius: 28px;
   font-size: 0.95em;
 }
 .status-aprovada-admin {
-  /* Solid full green for admin-approved (no gradient) */
-  background: #2e7d32; /* solid green */
+  /* Admin-approved: solid darker green */
+  background: #2e7d32; /* solid dark green */
   color: #fff;
   padding: 10px 24px;
   border-radius: 28px;

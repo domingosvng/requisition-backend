@@ -12,7 +12,8 @@ async function generateRequisicaoNumber(): Promise<string> {
 // ...existing code...
 // src/routes/requisicoesRoutes.ts
 
-import { Router } from 'express';
+import { Router, Response } from 'express';
+import { body, validationResult } from 'express-validator';
 import { AppDataSource } from '../data-source';
 import { Requisicao, StatusRequisicao } from '../entity/Requisicao';
 import { User } from '../entity/User';
@@ -28,7 +29,19 @@ const itemInventarioRepository = AppDataSource.getRepository(ItemInventario);
 // Create a new requisition (Requester only)
 // Requires: userId, numeroRequisicao, areaSolicitante, urgencia, itens, observacoes
 // Use authentication middleware to get user from JWT
-router.post('/', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+router.post('/', authenticateJWT,
+  [
+    body('area').optional().isString().withMessage('Área inválida'),
+    body('urgencia').optional().isIn(['BAIXA','MEDIA','ALTA']).withMessage('Urgencia inválida'),
+    body('items').optional().isArray().withMessage('Items deve ser array'),
+    body('items.*.itemId').optional().isInt().withMessage('itemId inválido'),
+    body('items.*.quantidade').optional().isInt({ min: 1 }).withMessage('Quantidade inválida'),
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array().map((e:any)=>({ field: e.param, message: e.msg })) });
+    }
   try {
   // Get user info from token
       const { id: userId, role } = req.user || {};

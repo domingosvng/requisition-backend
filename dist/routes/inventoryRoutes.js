@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const express_validator_1 = require("express-validator");
 const data_source_1 = require("../data-source");
 const ItemInventario_1 = require("../entity/ItemInventario");
 const User_1 = require("../entity/User");
@@ -34,7 +35,21 @@ router.get('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0
     }
 }));
 // Create new inventory item (admin only)
-router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.post('/', authMiddleware_1.authenticateJWT, 
+// validation middleware
+[
+    (0, express_validator_1.body)('nome').trim().notEmpty().withMessage('Nome é obrigatório').isLength({ max: 200 }).withMessage('Nome muito longo'),
+    (0, express_validator_1.body)('descricao').optional().isLength({ max: 1000 }).withMessage('Descricao muito longa'),
+    (0, express_validator_1.body)('categoria').optional().isString().withMessage('Categoria inválida'),
+    (0, express_validator_1.body)('quantidade').optional().isInt({ min: 0 }).withMessage('Quantidade deve ser inteiro >= 0'),
+    (0, express_validator_1.body)('unidadeMedida').optional().isLength({ max: 50 }).withMessage('Unidade muito longa'),
+    (0, express_validator_1.body)('localizacao').optional().isLength({ max: 200 }).withMessage('Localizacao muito longa'),
+    (0, express_validator_1.body)('status').optional().isIn(['ATIVO', 'INATIVO']).withMessage('Status inválido'),
+], (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const errors = (0, express_validator_1.validationResult)(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array().map((e) => ({ field: e.param, message: e.msg })) });
+    }
     try {
         const user = req.user;
         let { nome, descricao, categoria, quantidade, unidadeMedida, localizacao, status } = req.body;

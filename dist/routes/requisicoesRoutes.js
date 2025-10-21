@@ -24,6 +24,7 @@ function generateRequisicaoNumber() {
 // ...existing code...
 // src/routes/requisicoesRoutes.ts
 const express_1 = require("express");
+const express_validator_1 = require("express-validator");
 const data_source_1 = require("../data-source");
 const Requisicao_1 = require("../entity/Requisicao");
 const User_1 = require("../entity/User");
@@ -36,7 +37,17 @@ const itemInventarioRepository = data_source_1.AppDataSource.getRepository(ItemI
 // Create a new requisition (Requester only)
 // Requires: userId, numeroRequisicao, areaSolicitante, urgencia, itens, observacoes
 // Use authentication middleware to get user from JWT
-router.post('/', authMiddleware_1.authenticateJWT, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.post('/', authMiddleware_1.authenticateJWT, [
+    (0, express_validator_1.body)('area').optional().isString().withMessage('Área inválida'),
+    (0, express_validator_1.body)('urgencia').optional().isIn(['BAIXA', 'MEDIA', 'ALTA']).withMessage('Urgencia inválida'),
+    (0, express_validator_1.body)('items').optional().isArray().withMessage('Items deve ser array'),
+    (0, express_validator_1.body)('items.*.itemId').optional().isInt().withMessage('itemId inválido'),
+    (0, express_validator_1.body)('items.*.quantidade').optional().isInt({ min: 1 }).withMessage('Quantidade inválida'),
+], (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const errors = (0, express_validator_1.validationResult)(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array().map((e) => ({ field: e.param, message: e.msg })) });
+    }
     try {
         // Get user info from token
         const { id: userId, role } = req.user || {};

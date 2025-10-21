@@ -2,7 +2,7 @@
     <div class="container mt-4">
         <h2>Inventário Actual</h2>
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
-            <button v-if="canManage" class="btn btn-primary" @click="isEditing = false; resetForm(); showForm=true">Adicionar Item</button>
+            <button v-if="canManage" class="btn btn-primary" @click="showAddForm" data-test="add-item-btn">Adicionar Item</button>
             <input v-model="searchQuery" placeholder="Pesquisar inventário..." class="form-control" style="max-width:320px;" />
         </div>
         <table class="table table-dark table-striped table-bordered table-hover">
@@ -152,6 +152,12 @@ export default {
             }
         },
         resetForm() { this.form = { id: null, nome: '', quantidade: 0, descricao: '', categoria: [], categoriaText: '', unidadeMedida: '', localizacao: '', dataEntrada: '', dataUltimaSaida: '', fornecedor: '', valorUnitario: null, status: 'ATIVO' }; this.isEditing = false; this.showForm = false; },
+        showAddForm() {
+            console.log('showAddForm called');
+            this.isEditing = false;
+            this.resetForm();
+            this.showForm = true;
+        },
         filterInventario() {
             const q = this.searchQuery.trim().toLowerCase();
             if (!q) { this.filtered = this.inventario.slice(); return; }

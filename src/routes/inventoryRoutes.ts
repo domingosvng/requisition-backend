@@ -2,12 +2,14 @@ import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { AppDataSource } from '../data-source';
 import { ItemInventario } from '../entity/ItemInventario';
+import { Fornecedor } from '../entity/Fornecedor';
 import { User } from '../entity/User';
 import { authenticateJWT, AuthenticatedRequest } from '../middleware/authMiddleware';
 
 const router = Router();
 const itemRepository = AppDataSource.getRepository(ItemInventario);
 const userRepository = AppDataSource.getRepository(User);
+const fornecedorRepository = AppDataSource.getRepository(Fornecedor);
 
 // Dev-only public read route: useful for local development where frontend may not have a token.
 // This route is intentionally not protected and should NOT be enabled in production.
@@ -112,17 +114,47 @@ router.put('/:id', authenticateJWT, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    const updateData = req.body;
+    const body = req.body || {};
+    console.debug('[inventoryRoutes] PUT /inventario/' + id + ' body:', JSON.stringify(body).slice(0,1000));
     if (!user || (user.role !== 'ADMIN' && user.role !== 'ADMIN_TEC')) {
       return res.status(403).json({ message: 'Only admins or technical admins can edit inventory items.' });
     }
-    const item = await itemRepository.findOne({ where: { id: Number(id) } });
+    const item = await itemRepository.findOne({ where: { id: Number(id) }, relations: ['fornecedor'] });
     if (!item) return res.status(404).json({ message: 'Item not found.' });
-    Object.assign(item, updateData);
+
+    // Only copy allowed scalar fields to avoid assigning incompatible types
+    const allowed = ['nome','descricao','categoria','quantidade','unidadeMedida','localizacao','dataEntrada','dataUltimaSaida','valorUnitario','status'];
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
+        // basic normalization
+  if (key === 'quantidade') item.quantidade = Number(body[key] || 0);
+  else if (key === 'valorUnitario') item.valorUnitario = body[key] != null ? Number(body[key]) : undefined;
+  else (item as any)[key] = body[key];
+      }
+    }
+
+    // Handle fornecedor relation safely: accept id (number), object with id, or string (try to find by nome)
+    if (Object.prototype.hasOwnProperty.call(body, 'fornecedor')) {
+      const f = body.fornecedor;
+      let foundFornecedor = null;
+      if (!f) {
+        foundFornecedor = null;
+      } else if (typeof f === 'number') {
+        foundFornecedor = await fornecedorRepository.findOne({ where: { id: Number(f) } });
+      } else if (typeof f === 'object' && f.id) {
+        foundFornecedor = await fornecedorRepository.findOne({ where: { id: Number(f.id) } });
+      } else if (typeof f === 'string') {
+        // try to find by nome (best-effort)
+        foundFornecedor = await fornecedorRepository.findOne({ where: { nome: String(f) } });
+      }
+  item.fornecedor = (foundFornecedor as Fornecedor) || undefined;
+    }
+
     await itemRepository.save(item);
     res.status(200).json(item);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Erro ao editar item de inventario:', error);
     res.status(500).json({ message: 'Erro interno ao editar item de inventário.', error: errorMsg });
   }
 });

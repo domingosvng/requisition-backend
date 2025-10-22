@@ -19,9 +19,12 @@ export default {
   },
   created() {
     window.addEventListener('storage', this.checkAuth);
+    // Listen for same-tab auth changes (login/logout) so NavBar updates immediately
+    window.addEventListener('auth-changed', this.checkAuth);
   },
   unmounted() {
     window.removeEventListener('storage', this.checkAuth);
+    window.removeEventListener('auth-changed', this.checkAuth);
   },
   methods: {
     checkAuth() {

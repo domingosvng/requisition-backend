@@ -68,14 +68,17 @@
           <td v-if="userRole === 'ADMIN'">
             <!-- Show approve/reject to admin for pending, awaiting final or manager-approved requests, but not for already rejected or fully approved -->
             <template v-if="req.status !== 'REJEITADA' && req.status !== 'APROVADA'">
-              <button @click="openModal(req.id, 'APROVADA_FINAL')" class="btn btn-sm btn-success">Aprovar Final</button>
+              <!-- Admin final approval uses solid green -->
+              <button @click="openModal(req.id, 'APROVADA_FINAL')" class="btn btn-sm btn-admin-approve">Aprovar Final</button>
+              <!-- Reject uses red -->
               <button @click="openModal(req.id, 'REJEITADA')" class="btn btn-sm btn-danger">Rejeitar</button>
             </template>
-            <!-- Admin may still delete any requisition -->
-            <button @click="deleteRequisicao(req.id)" class="btn btn-sm btn-dark mt-1">Eliminar</button>
+            <!-- Admin may still delete any requisition (use light blue to stay within 4-color palette) -->
+            <button @click="deleteRequisicao(req.id)" class="btn btn-sm btn-pending mt-1">Eliminar</button>
           </td>
           <td v-else-if="userRole === 'GESTOR_DADM' && req.status === 'PENDENTE'">
-            <button @click="updateStatus(req.id, 'AGUARDANDO_APROV_FINAL')" class="btn btn-sm btn-success">Aprovar</button>
+            <!-- Manager approve uses light green -->
+            <button @click="updateStatus(req.id, 'AGUARDANDO_APROV_FINAL')" class="btn btn-sm btn-manager-approve">Aprovar</button>
             <button @click="updateStatus(req.id, 'REJEITADA')" class="btn btn-sm btn-danger">Rejeitar</button>
           </td>
         </tr>
@@ -182,9 +185,11 @@ export default {
       // return class name only (styles handled in CSS)
       switch (status) {
         case 'PENDENTE': return 'status-pendente';
-        case 'AGUARDANDO_APROV_FINAL': return 'status-pendente';
+        // AGUARDANDO_APROV_FINAL is displayed as 'Aprovada-Gestor' => use the manager-approved color
+        case 'AGUARDANDO_APROV_FINAL': return 'status-aprovada-gest';
         case 'APROVADA_GERENCIA': return 'status-aprovada-gest';
-        case 'APROVADA': return req.lastActionRole === 'ADMIN' ? 'status-aprovada-admin' : 'status-aprovada-gest';
+  // Ensure APROVADA always uses the admin solid-green color
+  case 'APROVADA': return 'status-aprovada-admin';
         case 'REJEITADA': return 'status-rejeitada';
         default: return '';
       }
@@ -228,8 +233,8 @@ body {
 }
 .legend-item { display:flex; align-items:center; gap:8px; }
 .legend-swatch { width:18px; height:12px; border-radius:4px; display:inline-block; border:1px solid #dcdcdc }
-.legend-swatch.gest { background: linear-gradient(90deg, #81c784 0%, #66bb6a 100%); }
-.legend-swatch.admin { background: #2e7d32; }
+.legend-swatch.gest { background: linear-gradient(90deg, #90ee90 0%, #81c784 100%); }
+.legend-swatch.admin { background: #28a745; }
 .user-info-text {
   color: #3A004D;
   font-size: 1.05em;
@@ -256,7 +261,7 @@ td {
 }
 .dashboard-table tr.active-row {
   /* visually mark approved rows with a green accent */
-  border-left: 4px solid #2e7d32; /* admin green */
+  border-left: 4px solid #28a745; /* admin green */
 }
 .dashboard-table .item-table {
   background: #ede7f6;
@@ -278,15 +283,54 @@ td {
   cursor: pointer;
 }
 .btn-success {
-  background: #43a047;
+  /* Approve actions - use the same green family as status badges */
+  --approve-start: #81c784; /* manager light */
+  --approve-end: #43a047; /* actionable green */
+  background: linear-gradient(90deg, var(--approve-start) 0%, var(--approve-end) 100%);
   color: #fff;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.12);
+}
+.btn-success:hover, .btn-success:focus {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
 }
 .btn-danger {
-  background: #e53935;
+  /* Reject actions - consistent red */
+  background: linear-gradient(90deg, #ff6b6b 0%, #e53935 100%);
   color: #fff;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.12);
+}
+.btn-danger:hover, .btn-danger:focus {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
 }
 .btn-dark {
-  background: #3A004D;
+  /* Brand / Cancel / Delete actions use the purple brand color */
+  background: linear-gradient(90deg, #5e2b6e 0%, #3A004D 100%);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.12);
+}
+.btn-dark:hover, .btn-dark:focus {
+  filter: brightness(0.97);
+  transform: translateY(-1px);
+}
+
+/* 4-color palette mapping:
+   - Light green: manager approval (btn-manager-approve, status-aprovada-gest)
+   - Solid green: admin approval (btn-admin-approve, status-aprovada-admin)
+   - Light blue: pending / action (btn-pending, status-pendente)
+   - Red: rejected (btn-danger, status-rejeitada)
+*/
+.btn-manager-approve {
+  background: linear-gradient(90deg, #c8e6c9 0%, #81c784 100%); /* light green */
+  color: #fff;
+}
+.btn-admin-approve {
+  background: linear-gradient(90deg, #28a745 0%, #28a745 100%); /* solid green */
+  color: #fff;
+}
+.btn-pending {
+  background: linear-gradient(90deg, #d8eeff 0%, #87cefa 100%); /* light blue */
   color: #fff;
 }
 .btn-sm {
@@ -327,55 +371,53 @@ td {
   padding: 8px;
 }
 .btn-final-approve {
-  background: #3A004D;
+  /* Confirm button in modal should highlight admin brand but be clearly an approve action */
+  background: linear-gradient(90deg, #2e7d32 0%, #3A004D 100%);
   color: #fff;
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
   margin-right: 8px;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(58,0,77,0.12);
+}
+.btn-final-approve:hover, .btn-final-approve:focus {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
 }
 .btn-cancel {
-  background: #d1c4e9;
+  background: #f1e7f6;
   color: #3A004D;
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
+  border: 1px solid rgba(58,0,77,0.06);
+}
+.btn-cancel:hover, .btn-cancel:focus {
+  background: #e9def0;
 }
 /* Status badges */
-.status-badge {
+/* Base style to ensure text is bold and centered */
+.status-badge, .status-tag {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 12px;
-  color: #fff;
   font-weight: 600;
-}
-.status-pendente {
-  background: linear-gradient(90deg, #3fb0ff 0%, #1e90ff 100%);
-  padding: 10px 24px;
-  border-radius: 28px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-align: center;
+  white-space: nowrap;
   font-size: 0.95em;
 }
-.status-aprovada-gest {
-  /* Manager-approved: lighter green gradient */
-  background: linear-gradient(90deg, #81c784 0%, #66bb6a 100%);
-  padding: 10px 24px;
-  border-radius: 28px;
-  font-size: 0.95em;
-}
-.status-aprovada-admin {
-  /* Admin-approved: solid darker green */
-  background: #2e7d32; /* solid dark green */
-  color: #fff;
-  padding: 10px 24px;
-  border-radius: 28px;
-  font-size: 0.95em;
-}
-.status-rejeitada {
-  background: linear-gradient(90deg, #ff3e3e 0%, #ff1a1a 100%);
-  padding: 10px 24px;
-  border-radius: 28px;
-  font-size: 0.95em;
-}
+
+/* User-provided palette (uppercase class names) */
+.status-REJEITADA { background-color: #dc3545; color: #fff; }
+.status-PENDENTE { background-color: #add8e6; color: #222; }
+.status-APROVADA-GESTOR { background-color: #90ee90; color: #222; }
+.status-APROVADA { background-color: #28a745; color: #fff; }
+
+/* Map existing lowercase/hyphen classes used in template to the same colors */
+.status-rejeitada { background-color: #dc3545; color: #fff; }
+.status-pendente { background-color: #add8e6; color: #222; }
+.status-aprovada-gest { background-color: #90ee90; color: #222; }
+.status-aprovada-admin { background-color: #28a745; color: #fff; }
 </style>

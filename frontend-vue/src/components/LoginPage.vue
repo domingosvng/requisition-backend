@@ -45,11 +45,13 @@ const handleSubmit = async () => {
       username: username.value,
       password: password.value,
     });
-    const { token, user } = response.data;
-    localStorage.setItem('userToken', token);
-    localStorage.setItem('userRole', user.role);
-    localStorage.setItem('username', user.username);
-    router.push('/dashboard');
+  const { token, user } = response.data;
+  localStorage.setItem('userToken', token);
+  localStorage.setItem('userRole', user.role);
+  localStorage.setItem('username', user.username);
+  // Notify the app in this same tab that auth state changed so NavBar can appear immediately
+  try { window.dispatchEvent(new Event('auth-changed')); } catch (e) { /* ignore */ }
+  router.push('/dashboard');
   } catch (err) {
     const message = err.response?.data?.message || 'Login falhou. Verifique as credenciais.';
     error.value = message;

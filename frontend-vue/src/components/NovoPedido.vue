@@ -17,10 +17,10 @@
       <div class="form-group">
         <label for="urgencia">Nível de Urgência:</label>
         <select id="urgencia" v-model="form.urgencia" required>
-          <option value="Alta">Alta</option>
-          <option value="Média">Média</option>
-          <option value="Baixa">Baixa</option>
-        </select>
+              <option value="ALTA">Alta</option>
+              <option value="MEDIA">Média</option>
+              <option value="BAIXA">Baixa</option>
+            </select>
       </div>
       <div class="form-group">
         <label for="observacoes">Observações:</label>
@@ -43,8 +43,8 @@
 
 <script setup>
 import { ref } from 'vue';
-import axios from 'axios';
-const API_URL = 'http://localhost:3001/api/requisicoes';
+import apiService from '../services/apiService';
+const API_URL = '/requisicoes';
 const form = ref({
   descricao: '',
   especificacoes: '',
@@ -58,15 +58,17 @@ const messageType = ref('');
 const handleSubmit = async () => {
   message.value = '';
   try {
-    const token = localStorage.getItem('userToken');
-    await axios.post(API_URL, form.value, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    await apiService.post(API_URL, form.value);
     message.value = 'Requisição submetida com sucesso! Aguardando aprovação.';
     messageType.value = 'success';
-  form.value = { descricao: '', especificacoes: '', quantidade: 1, urgencia: 'Média', observacoes: '', area: 'Administração' };
+    form.value = { descricao: '', especificacoes: '', quantidade: 1, urgencia: 'MEDIA', observacoes: '', area: 'Administração' };
   } catch (error) {
-    message.value = error.response?.data?.message || 'Falha ao submeter requisição.';
+    const resp = error.response && error.response.data;
+    if (resp && Array.isArray(resp.errors)) {
+  message.value = resp.errors.map(e => `${e.field || 'campo'}: ${e.message}`).join('; ');
+    } else {
+      message.value = resp?.message || 'Falha ao submeter requisição.';
+    }
     messageType.value = 'error';
   }
 };
